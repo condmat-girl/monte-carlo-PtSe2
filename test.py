@@ -8,16 +8,22 @@ spacing = 1.0
 k_f = 1.0
 U0 = 1.0
 steps = 100000
-temperatures = np.linspace(0.1, 5.0, 20)
-
 
 # test
 lattice = TriangularLattice(rows, cols, spacing, k_f, U0)
 
-magnetizations = []
-for T in temperatures:
-    lattice.run_monte_carlo(steps, T)
-    magnetizations.append(lattice.average_magnetization_x())
+
+
+########################################################################
+################## the plotting of the system ##########################
+########################################################################
+
+
+
+# magnetizations = []
+# for T in temperatures:
+#     lattice.run_monte_carlo(steps, T)
+#     magnetizations.append(lattice.average_magnetization_x())
 
 
 # plots! the system sanity-check
@@ -36,11 +42,28 @@ for T in temperatures:
 
 
 
-# magnetiyation plot
-plt.figure(figsize=(8, 6))
-plt.plot(temperatures, magnetizations, marker='o', linestyle='-', color='b')
-plt.xlabel("Temperature [T]")
-plt.ylabel("m_x")
-# plt.title("Temperature Dependence of Magnetization")
-plt.grid(True, linestyle='--', alpha=0.5)
-plt.show()
+
+########################################################################
+########### the magnetization plot of temperature ######################
+########################################################################
+
+
+
+# temperatures = np.linspace(0.1, 5.0, 20)
+
+# lattice = TriangularLattice(rows, cols, spacing, k_f, U0)
+
+# magnetizations = []
+# for T in temperatures:
+#     lattice.run_monte_carlo(steps, T)
+#     magnetizations.append(lattice.average_magnetization_x())
+
+
+
+# # magnetiyation plot
+# plt.figure(figsize=(8, 6))
+# plt.plot(temperatures, magnetizations, marker='o', linestyle='-', color='b')
+# plt.xlabel("Temperature [T]")
+# plt.ylabel("m_x")
+# plt.grid(True, linestyle='--', alpha=0.5)
+# plt.show()
