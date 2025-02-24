@@ -42,7 +42,6 @@ class TriangularLattice:
         dx = r1[0] - r2[0]
         dy = r1[1] - r2[1]
 
-        # PBC
         dx -= self.Lx * np.round(dx / self.Lx)
         dy -= self.Ly * np.round(dy / self.Ly)
 
@@ -163,7 +162,6 @@ class TriangularLattice:
 
         plt.xlabel("x")
         plt.ylabel("y")
-        # plt.show()
 
     def plot_magnetization(self):
         if self.magnetization is None:
