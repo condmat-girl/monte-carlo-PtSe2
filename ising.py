@@ -42,6 +42,7 @@ class TriangularLattice:
         dx = r1[0] - r2[0]
         dy = r1[1] - r2[1]
 
+        # PBC
         dx -= self.Lx * np.round(dx / self.Lx)
         dy -= self.Ly * np.round(dy / self.Ly)
 
@@ -68,7 +69,7 @@ class TriangularLattice:
         self.r_ij = self.distances[self.i_idx, self.j_idx]
 
         self.hist, self.bin_edges = np.histogram(
-            self.r_ij, bins=40, range=(0, np.max(self.r_ij))
+            self.r_ij, bins="fd", range=(0, np.max(self.r_ij))
         )
 
         self.bin_centers = (self.bin_edges[:-1] + self.bin_edges[1:]) / 2
@@ -102,17 +103,10 @@ class TriangularLattice:
         self.M = np.mean(self.magnetic_moments)
 
     def compute_pair_correlation(self):
-
         correlation = (
             self.magnetic_moments[self.i_idx] * self.magnetic_moments[self.j_idx]
         )
-
-        correlation_sum, _ = np.histogram(
-            self.r_ij, bins=self.bin_edges, weights=correlation
-        )
-        correlation_avg = correlation_sum / (self.hist + 1e-10)
-
-        return correlation_avg
+        return correlation
 
     def monte_carlo_loop(self, steps, warmup, T):
         self.T = T
@@ -135,7 +129,12 @@ class TriangularLattice:
             self.magnetization.append(self.M)
             correlation_accumulated += self.compute_pair_correlation()
 
-        self.pair_correlation = correlation_accumulated / (steps + 1)
+        self.correlation = correlation_accumulated / (steps + 1)
+        correlation_sum, _ = np.histogram(
+            self.r_ij, bins=self.bin_edges, weights=self.correlation
+        )
+        self.pair_correlation = correlation_sum / (self.hist + 1e-10)
+
         self.acceptance_rate = self.accept / steps
 
     def plot_lattice(self):
@@ -162,6 +161,7 @@ class TriangularLattice:
 
         plt.xlabel("x")
         plt.ylabel("y")
+        # plt.show()
 
     def plot_magnetization(self):
         if self.magnetization is None:
@@ -177,10 +177,8 @@ class TriangularLattice:
         if self.pair_correlation is None:
             raise ValueError("Run monte_carlo_loop first!")
 
-        avg_corr = self.compute_pair_correlation()
-
         plt.figure(figsize=(6, 4))
-        plt.plot(avg_corr)
+        plt.plot(self.pair_correlation[:self.cols-15])
         plt.xlabel("Distance")
         plt.ylabel("Pair Correlation")
         plt.show()
