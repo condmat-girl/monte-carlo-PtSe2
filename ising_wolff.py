@@ -26,10 +26,11 @@ class TriangularLattice:
 
         self.N = len(points)
         self.lattice_points = np.array(points)
-        self.magnetic_moments = self.initialize_magnetic_moments()
-        self.interaction_matrix = self.compute_rkky_matrix()
+        self.spins = self.initialize_spins()
+        self.Jij = self.compute_rkky_matrix()
+        self.nearest_neighbors = self.compute_nearest_neighbors()
 
-    def initialize_magnetic_moments(self):
+    def initialize_spins(self):
         return 2 * (np.random.random(self.N) > 0.5) - 1
 
     def rkky_interaction_2d(self, r):
@@ -56,12 +57,12 @@ class TriangularLattice:
                     self.lattice_points[i], self.lattice_points[j]
                 )
 
-        interaction_matrix = -self.J0 * (
+        Jij = -self.J0 * (
             j0(self.kf * distances) * y0(self.kf * distances)
             + j1(self.kf * distances) * y1(self.kf * distances)
         )
 
-        np.fill_diagonal(interaction_matrix, 0)
+        np.fill_diagonal(Jij, 0)
         self.distances = distances
 
         self.i_idx, self.j_idx = np.triu_indices(self.N, k=1)  #  only unique pairs
@@ -73,37 +74,65 @@ class TriangularLattice:
 
         self.bin_centers = (self.bin_edges[:-1] + self.bin_edges[1:]) / 2
 
-        return interaction_matrix
+        return Jij
+
+    def compute_nearest_neighbors(self):
+        nearest_neighbors = []
+        for i in range(self.N):
+            distances = self.distances[i]
+            nearest = np.argsort(distances)
+            nearest = nearest[nearest != i]  # Exclude self
+            
+            # the closest distance
+            closest_distance = distances[nearest[0]]
+            
+            # all neighbors with the closest distance
+            closest_neighbors = nearest[distances[nearest] == closest_distance]
+            
+            nearest_neighbors.append(closest_neighbors)
+        return nearest_neighbors
 
     def compute_energy(self):
-        energy = 0.0
-        for i in range(self.N):
-            for j in range(i + 1, self.N):
-                energy += (
-                    self.interaction_matrix[i, j]
-                    * self.magnetic_moments[i]
-                    * self.magnetic_moments[j]
-                )
-        return energy
+        return np.einsum('ij,i,j',self.Jij,self.spins,self.spins)/2
 
-    def metropolis_step(self):
+    def wolff_step(self):
+        cluster = set()
+        visited = set()
+
         i = np.random.randint(0, self.N)
-        old_moment = self.magnetic_moments[i]
-        new_moment = -old_moment
+        cluster.add(i)
+        visited.add(i)
 
-        delta_energy = (new_moment - old_moment) * np.sum(
-            self.interaction_matrix[i, :] * self.magnetic_moments
-        )
-        if delta_energy < 0 or np.exp(-delta_energy / self.T) > np.random.random():
-            self.magnetic_moments[i] = new_moment
-            self.E += delta_energy
-            self.accept += 1
 
-        self.M = np.mean(self.magnetic_moments)
+        while True:
+            current = i
+            
+            nn = self.nearest_neighbors[current]
+            stepen = np.min([0,-2 * self.Jij[i,nn][0] / self.T])
+            P_add = 1 - np.exp(stepen)
+            added_to_cluster = False
+
+            for j in nn:
+                if j not in visited and self.spins[j] == self.spins[i]:
+                    if np.random.random() < P_add:
+                        cluster.add(j)
+                        visited.add(j)
+                        i = j 
+                        added_to_cluster = True
+                        break
+            
+            if not added_to_cluster:
+                break  
+
+        for atom in cluster:
+            self.spins[atom] *= -1
+
+        self.E = self.compute_energy()
+        self.M = np.mean(self.spins)
 
     def compute_pair_correlation(self):
         correlation = (
-            self.magnetic_moments[self.i_idx] * self.magnetic_moments[self.j_idx]
+            self.spins[self.i_idx] * self.spins[self.j_idx]
         )
         return correlation
 
@@ -111,11 +140,9 @@ class TriangularLattice:
         self.T = T
         self.E = self.compute_energy()
 
-        self.accept = 0
         for _ in range(warmup):
-            self.metropolis_step()
+            self.wolff_step()
 
-        self.accept = 0
         self.energy = []
         self.magnetization = []
         self.susceptibility = []
@@ -124,20 +151,21 @@ class TriangularLattice:
         correlation_accumulated = self.compute_pair_correlation()
 
         for _ in tqdm(range(steps)):
-            self.metropolis_step()
+            self.wolff_step()
             self.energy.append(self.E)
             self.magnetization.append(self.M)
-            self.susceptibility.append(self.magnetic_moments[:,None]*self.magnetic_moments[None,:])
+            self.susceptibility.append(self.compute_susceptibility())
             correlation_accumulated += self.compute_pair_correlation()
 
-        self.susceptibility=np.mean(self.susceptibility)
         self.correlation = correlation_accumulated / (steps + 1)
         correlation_sum, _ = np.histogram(
             self.r_ij, bins=self.bin_edges, weights=self.correlation
         )
         self.pair_correlation = correlation_sum / (self.hist + 1e-10)
 
-        self.acceptance_rate = self.accept / steps
+    def compute_susceptibility(self):
+        # return np.mean(self.spins**2) - self.M**2
+        return np.var(self.spins)
 
     def plot_lattice(self):
         rows, cols = self.rows, self.cols
@@ -158,12 +186,61 @@ class TriangularLattice:
             self.lattice_points[:, 0],
             self.lattice_points[:, 1],
             s=50,
-            c=self.magnetic_moments,
+            c=self.spins,
         )
 
         plt.xlabel("x")
         plt.ylabel("y")
         # plt.show()
+
+    def plot_nearest_neighbors(self):
+
+        plt.figure(figsize=(10, 10))
+        
+        plt.scatter(
+            self.lattice_points[:, 0],
+            self.lattice_points[:, 1],
+            c=self.spins,
+            # cmap="coolwarm",
+            s=50#,
+            # edgecolors="k"
+        )
+
+        for i in range(self.N):
+            x0, y0 = self.lattice_points[i]
+            
+            # Рисуем стрелки к соседям
+            for j in self.nearest_neighbors[i]:
+                dx = self.lattice_points[j][0] - x0
+                dy = self.lattice_points[j][1] - y0
+                
+                # Корректируем для PBC
+                dx -= self.Lx * np.round(dx / self.Lx)
+                dy -= self.Ly * np.round(dy / self.Ly)
+                
+                plt.arrow(
+                    x0, y0,
+                    dx*0.9, dy*0.9,  
+                    head_width=0.45,
+                    head_length=0.5,
+                    fc="black",
+                    ec="black",
+                    alpha=0.5
+                )
+        
+        plt.xlabel("x")
+        plt.ylabel("y")
+        plt.show()
+    
+    def plot_energy(self):
+        if self.energy is None:
+            raise ValueError("Run monte_carlo_loop first!")
+
+        plt.figure(figsize=(6, 4))
+        plt.plot(self.magnetization)
+        plt.xlabel("Monte Carlo Step")
+        plt.ylabel("Energy")
+        plt.show()
 
     def plot_magnetization(self):
         if self.magnetization is None:
@@ -174,6 +251,17 @@ class TriangularLattice:
         plt.xlabel("Monte Carlo Step")
         plt.ylabel("Magnetization")
         plt.show()
+
+    def plot_susceptibility(self):
+        if self.susceptibility is None:
+            raise ValueError("Run monte_carlo_loop first!")
+
+        plt.figure(figsize=(6, 4))
+        plt.plot(self.magnetization)
+        plt.xlabel("Monte Carlo Step")
+        plt.ylabel("Susceptibility")
+        plt.show()
+
 
     def plot_pair_correlation(self):
         if self.pair_correlation is None:
