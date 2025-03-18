@@ -49,6 +49,7 @@ class TriangularLattice:
         return np.sqrt(dx**2 + dy**2)
 
     def compute_rkky_matrix(self):
+
         distances = np.zeros((self.N, self.N))
         for i in range(self.N):
             for j in range(self.N):
@@ -118,7 +119,6 @@ class TriangularLattice:
         self.accept = 0
         self.energy = []
         self.magnetization = []
-        self.susceptibility = []
         self.pair_correlation = np.zeros((self.N * (self.N - 1) // 2, 2))
 
         correlation_accumulated = self.compute_pair_correlation()
@@ -127,10 +127,8 @@ class TriangularLattice:
             self.metropolis_step()
             self.energy.append(self.E)
             self.magnetization.append(self.M)
-            self.susceptibility.append(self.magnetic_moments[:,None]*self.magnetic_moments[None,:])
             correlation_accumulated += self.compute_pair_correlation()
 
-        self.susceptibility=np.mean(self.susceptibility)
         self.correlation = correlation_accumulated / (steps + 1)
         correlation_sum, _ = np.histogram(
             self.r_ij, bins=self.bin_edges, weights=self.correlation
@@ -179,8 +177,10 @@ class TriangularLattice:
         if self.pair_correlation is None:
             raise ValueError("Run monte_carlo_loop first!")
 
+        r, avg_corr = self.compute_pair_correlation()
+
         plt.figure(figsize=(6, 4))
-        plt.plot(self.pair_correlation[:self.cols-15])
+        plt.plot(r, avg_corr)
         plt.xlabel("Distance")
         plt.ylabel("Pair Correlation")
         plt.show()
