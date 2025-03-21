@@ -135,6 +135,10 @@ class TriangularLattice:
         )
         self.pair_correlation = correlation_sum / (self.hist + 1e-10)
 
+        self.q_array = np.linspace(0,2*np.pi, 151)
+        self.ft_correlation = np.array([np.sum(self.correlation * np.exp(1j * self.r_ij * q)) for q in self.q_array])
+        self.ft_correlation /= self.N
+
         self.acceptance_rate = self.accept / steps
 
     def plot_lattice(self):
@@ -181,6 +185,19 @@ class TriangularLattice:
 
         plt.figure(figsize=(6, 4))
         plt.plot(r, avg_corr)
-        plt.xlabel("Distance")
-        plt.ylabel("Pair Correlation")
+        plt.xlabel("r")
+        plt.ylabel("$<S_i S_j> (r)$")
+        plt.show()
+
+    def plot_ft_pair_correlation(self):
+        if self.ft_correlation is None:
+            raise ValueError("Run monte_carlo_loop first!")
+
+        plt.figure(figsize=(6, 4))
+        
+        plt.plot(self.q_array,np.real(self.ft_correlation), label = 'real')
+        plt.plot(self.q_array,np.imag(self.ft_correlation), label = 'imag')
+        plt.xlabel("q")
+        plt.ylabel("$<S_i S_j> (q)$")
+        plt.legend()
         plt.show()

@@ -154,7 +154,7 @@ class TriangularLattice:
             self.wolff_step()
             self.energy.append(self.E)
             self.magnetization.append(self.M)
-            self.susceptibility.append(self.compute_susceptibility())
+            # self.susceptibility.append(self.compute_susceptibility())
             correlation_accumulated += self.compute_pair_correlation()
 
         self.correlation = correlation_accumulated / (steps + 1)
