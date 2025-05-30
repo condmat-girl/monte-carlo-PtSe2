@@ -142,8 +142,11 @@ class TriangularLattice:
         # self.ft_correlation /= len(self.r_ij)
 
         ## calculation for q = 0, q = 2pikF
-        self.ft_correlation = np.array([np.sum(self.correlation * np.exp(1j * self.r_ij * q)) for q in [0,2*np.pi*self.kf]])
-        self.ft_correlation /= len(self.r_ij)
+        self.q_array = [0, 2 * np.pi * self.kf]
+        self.ft_correlation = np.array([
+            np.sum(self.correlation * np.exp(1j * self.r_ij * q)) for q in self.q_array
+        ]) / len(self.r_ij)
+        self.ft_susceptibility = self.ft_correlation 
 
         self.acceptance_rate = self.accept / steps
 
@@ -196,13 +199,15 @@ class TriangularLattice:
         plt.show()
 
     def plot_ft_pair_correlation(self):
+        if self.ft_susceptibility is None:
+            raise ValueError("Run monte_carlo_loop first!")
         if self.ft_correlation is None:
             raise ValueError("Run monte_carlo_loop first!")
 
         plt.figure(figsize=(6, 4))
         
-        plt.plot(self.q_array,np.real(self.ft_correlation), label = 'real')
-        plt.plot(self.q_array,np.imag(self.ft_correlation), label = 'imag')
+        plt.plot(self.q_array, np.real(self.ft_susceptibility), label='Re[χ(q)]')
+        plt.plot(self.q_array, np.imag(self.ft_susceptibility), label='Im[χ(q)]')
         plt.xlabel("q")
         plt.ylabel("$<S_i S_j> (q)$")
         plt.legend()

@@ -119,6 +119,7 @@ class TriangularLattice:
         self.accept = 0
         self.energy = []
         self.magnetization = []
+        self.susceptibility = 0
         self.pair_correlation = np.zeros((self.N * (self.N - 1) // 2, 2))
 
         correlation_accumulated = self.compute_pair_correlation()
@@ -145,7 +146,13 @@ class TriangularLattice:
         self.ft_correlation = np.array([np.sum(self.correlation * np.exp(1j * self.r_ij * q)) for q in [0,2*np.pi*self.kf]])
         self.ft_correlation /= len(self.r_ij)
 
+        
         self.acceptance_rate = self.accept / steps
+
+        # Susceptibility via fluctuation-dissipation theorem at q = 0:
+        # χ = (1/NkT) * sum(S_i * S_j) = (1/T) * var(M)
+        self.susceptibility = (np.var(self.magnetization) * self.N) / self.T
+    
 
     def plot_lattice(self):
         rows, cols = self.rows, self.cols
@@ -187,7 +194,8 @@ class TriangularLattice:
         if self.pair_correlation is None:
             raise ValueError("Run monte_carlo_loop first!")
 
-        r, avg_corr = self.compute_pair_correlation()
+        avg_corr = self.pair_correlation
+        r = self.bin_centers
 
         plt.figure(figsize=(6, 4))
         plt.plot(r, avg_corr)
