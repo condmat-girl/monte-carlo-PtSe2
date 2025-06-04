@@ -207,3 +207,24 @@ class TriangularLattice:
         plt.ylabel("$<S_i S_j> (q)$")
         plt.legend()
         plt.show()
+
+    ## universal for any quantities 
+    def autocorrelation(self, x):
+
+        x = np.asarray(x)
+        n = len(x)
+
+        mean_x = x.mean()
+        x_cent = x - mean_x
+        sigma2 = (x_cent * x_cent).sum() / n
+
+        if sigma2 == 0:
+            return np.ones(n)  
+
+        cor = np.zeros(n)
+        for k in range(n):
+            num = np.dot(x_cent[0 : n - k], x_cent[k : n])
+            den = (n - k) * sigma2
+            cor[k] = num / den
+
+        return cor

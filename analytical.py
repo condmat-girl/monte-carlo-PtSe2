@@ -217,22 +217,22 @@ from scipy.stats import linregress
 # print(finish- start)
 
 
-intercepts = np.loadtxt('intersepts.txt')
-kF_values = np.loadtxt('kF_values.txt')
+# intercepts = np.loadtxt('intersepts.txt')
+# kF_values = np.loadtxt('kF_values.txt')
 
-plt.figure(figsize=(5, 4))
+# plt.figure(figsize=(5, 4))
 
 
-# Plot intercept vs kF
+# # Plot intercept vs kF
 
-plt.plot(kF_values, intercepts, 'o-')
-plt.xlabel(r'$k_F$')
-plt.ylabel(r'$\int_0^{\infty} r J(r) dr $')
-plt.grid(True)
-plt.xscale('log')
-plt.yscale('log')
-plt.tight_layout()
-plt.show()
+# plt.plot(kF_values, intercepts, 'o-')
+# plt.xlabel(r'$k_F$')
+# plt.ylabel(r'$\int_0^{\infty} r J(r) dr $')
+# plt.grid(True)
+# plt.xscale('log')
+# plt.yscale('log')
+# plt.tight_layout()
+# plt.show()
 
 
 
@@ -242,42 +242,62 @@ plt.show()
 
 
 
-# # Re-import necessary modules after code execution state reset
-# import numpy as np
-# import matplotlib.pyplot as plt
+# Re-import necessary modules after code execution state reset
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.colors import LogNorm
+from matplotlib.ticker import FuncFormatter#LogFormatter#FormatStrFormatter
 
-# # Constants
-# k_B = 1.0  # Boltzmann constant (arbitrary units)
-# m = 0.5    # Magnetic moment (arbitrary units)
 
-# # Recreate kF_values and load intercepts (I_fit)
-# kF_values = np.loadtxt('kF_values.txt')
+# Constants
+k_B = 1.0  # Boltzmann constant (arbitrary units)
+m = 0.5    # Magnetic moment (arbitrary units)
 
-# # For demonstration, simulate I_fit as decreasing function (replace with np.loadtxt('intersepts') if needed)
-# # Simulate intercepts similar to original result
-# I_fit = np.loadtxt('intersepts.txt')
+# Recreate kF_values and load intercepts (I_fit)
+kF_values = np.loadtxt('data/kF_values.txt')
 
-# # Define a range of delta (chemical doping)
-# delta_values = np.linspace(0.1, 1.0, 50)
+# For demonstration, simulate I_fit as decreasing function (replace with np.loadtxt('intersepts') if needed)
+# Simulate intercepts similar to original result
+I_fit = np.loadtxt('data/intersepts.txt')
 
-# # Prepare TC phase diagram
-# TC = np.zeros((len(delta_values), len(kF_values)))
+# Define a range of delta (chemical doping)
+delta_values = np.linspace(0.001, 1.0, 50)
 
-# # Calculate critical temperature for each (delta, kF) pair
-# for i, delta in enumerate(delta_values):
-#     for j, I in enumerate(I_fit):
-#         TC[i, j] = (delta**2 * m**2 * I) / k_B
+# Prepare TC phase diagram
+TC = np.zeros((len(delta_values), len(kF_values)))
 
-# # Plotting the phase diagram
-# plt.figure(figsize=(10, 6))
-# X, Y = np.meshgrid(kF_values, delta_values)
-# contour = plt.contourf(X, Y, TC, levels=100, cmap='plasma')
-# plt.colorbar(contour, label=r'$T_C$')
-# plt.xlabel(r'$k_F$')
-# plt.ylabel(r'$\delta$ ')
+# Calculate critical temperature for each (delta, kF) pair
+for i, delta in enumerate(delta_values):
+    for j, I in enumerate(I_fit):
+        TC[i, j] = (delta**2 * m**2 * I) / k_B
+
+# Plotting the phase diagram
+plt.figure(figsize=(5, 4))
+X, Y = np.meshgrid(kF_values, delta_values)
+
+levels = np.logspace(np.log10(np.max([TC.min(), 1e-7])), np.log10(TC.max()), 50)
+# plt.contourf(X, Y, TC, levels=levels, cmap='plasma', norm=LogNorm())
+
+
+contour = plt.contourf(X, Y, TC, levels=levels, cmap='plasma', norm=LogNorm())
+
+# ticks = levels[::8]  # например, каждый 10-й уровень
+cbar = plt.colorbar(contour)#, ticks=ticks)
+cbar.set_label(r'$T_C$')
+# cbar.set_ticklabels([f"{t:.4f}" for t in ticks])
+formatter = FuncFormatter(lambda x, pos: r'$10^{%d}$' % np.log10(x) if x > 0 else '')
+cbar.ax.yaxis.set_major_formatter(formatter)
+# cbar.ax.yaxis.set_major_formatter(FormatStrFormatter('%.1f'))
+#cbar.ax.yaxis.set_major_formatter(LogFormatter(base=10))
+
+# plt.colorbar(contour, label=r'$T_C$')#, major_formatter(FormatStrFormatter('%.1f')))#, ticklabels="")
+plt.xlabel(r'$k_F [1/cm]$')
+plt.ylabel(r'$\delta$ ')
 # plt.title('Phase Diagram')
-# plt.grid(True)
-# plt.xscale('log')
-# plt.yscale('log')
-# plt.tight_layout()
-# plt.show()
+plt.grid(False)
+plt.xscale('log')
+plt.yscale('log')
+# plt.ylim(0.1,1)
+# plt.xlim(kF_values[0],0.)
+plt.tight_layout()
+plt.show()
