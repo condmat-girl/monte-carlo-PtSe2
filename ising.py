@@ -209,22 +209,41 @@ class TriangularLattice:
         plt.show()
 
     ## universal for any quantities 
-    def autocorrelation(self, x):
+    def autocorrelation(self, data):
 
-        x = np.asarray(x)
-        n = len(x)
+        data = np.asarray(data)
+        n = len(data)
 
-        mean_x = x.mean()
-        x_cent = x - mean_x
-        sigma2 = (x_cent * x_cent).sum() / n
+        mean_data = data.mean()
+        data_cent = data - mean_data
+        sigma2 = (data_cent * data_cent).sum() / n
 
         if sigma2 == 0:
             return np.ones(n)  
 
         cor = np.zeros(n)
         for k in range(n):
-            num = np.dot(x_cent[0 : n - k], x_cent[k : n])
+            num = np.dot(data_cent[0 : n - k], data_cent[k : n])
             den = (n - k) * sigma2
             cor[k] = num / den
 
         return cor
+    
+    def calculate_autocorrelation_time(self,correlation):
+
+        cutoff = np.where(correlation < 0)[0]
+        if len(cutoff) > 0:
+            M = cutoff[0]  
+        else:
+            M = len(correlation)  
+
+        tau_int = 1 + 2 * np.sum(correlation[1:M])
+        return tau_int
+    
+
+    def calculate_error(self,data, tau_int):
+       
+        N = len(data)
+        variance = np.var(data)
+        error = np.sqrt(2 * tau_int * variance / N)
+        return error
