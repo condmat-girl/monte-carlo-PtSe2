@@ -177,10 +177,25 @@ class TriangularLattice:
         if self.magnetization is None:
             raise ValueError("Run monte_carlo_loop first!")
 
-        plt.figure(figsize=(6, 4))
+        # Calculate autocorrelation for magnetization
+        magnetization_autocorr = self.autocorrelation(self.magnetization)
+
+        # Calculate autocorrelation time
+        tau_int = self.calculate_autocorrelation_time(magnetization_autocorr)
+
+
+        # Calculate error
+        error = self.calculate_error(self.magnetization, tau_int)
+        print(error)
+        # Plot magnetization with error bars
+        steps = np.arange(len(self.magnetization))
+        errors = np.full_like(steps, error)  # Same error for all steps
+
+        plt.figure(figsize=(5, 4))
         plt.plot(self.magnetization)
-        plt.xlabel("Monte Carlo Step")
+        plt.errorbar(steps, self.magnetization, yerr=error, label=f"τ = {tau_int:.2f}\neror = {error:.4f}\n<M> = {np.mean(self.magnetization):.3f}")
         plt.ylabel("Magnetization")
+        plt.legend()
         plt.show()
 
     def plot_pair_correlation(self):
@@ -232,12 +247,10 @@ class TriangularLattice:
     def calculate_autocorrelation_time(self,correlation):
 
         cutoff = np.where(correlation < 0)[0]
-        if len(cutoff) > 0:
-            M = cutoff[0]  
-        else:
-            M = len(correlation)  
+        M = cutoff[0]  
 
         tau_int = 1 + 2 * np.sum(correlation[1:M])
+        
         return tau_int
     
 
@@ -246,4 +259,5 @@ class TriangularLattice:
         N = len(data)
         variance = np.var(data)
         error = np.sqrt(2 * tau_int * variance / N)
+
         return error
