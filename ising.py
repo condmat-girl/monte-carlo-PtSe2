@@ -119,7 +119,7 @@ class TriangularLattice:
         self.accept = 0
         self.energy = []
         self.magnetization = []
-        self.pair_correlation = np.zeros((self.N * (self.N - 1) // 2, 2))
+        # self.pair_correlation = np.zeros((self.N * (self.N - 1) // 2, 2))
 
         correlation_accumulated = self.compute_pair_correlation()
 
@@ -127,13 +127,13 @@ class TriangularLattice:
             self.metropolis_step()
             self.energy.append(self.E)
             self.magnetization.append(self.M)
-            correlation_accumulated += self.compute_pair_correlation()
+            # correlation_accumulated += self.compute_pair_correlation()
 
-        self.correlation = correlation_accumulated / (steps + 1)
-        correlation_sum, _ = np.histogram(
-            self.r_ij, bins=self.bin_edges, weights=self.correlation
-        )
-        self.pair_correlation = correlation_sum / (self.hist + 1e-10)
+        # self.correlation = correlation_accumulated / (steps + 1)
+        # correlation_sum, _ = np.histogram(
+        #     self.r_ij, bins=self.bin_edges, weights=self.correlation
+        # )
+        # self.pair_correlation = correlation_sum / (self.hist + 1e-10)
 
 
         # ### calculation <S_i S_j>
@@ -142,8 +142,8 @@ class TriangularLattice:
         # self.ft_correlation /= len(self.r_ij)
 
         ## calculation for q = 0, q = 2pikF
-        self.ft_correlation = np.array([np.sum(self.correlation * np.exp(1j * self.r_ij * q)) for q in [0,2*np.pi*self.kf]])
-        self.ft_correlation /= len(self.r_ij)
+        # self.ft_correlation = np.array([np.sum(self.correlation * np.exp(1j * self.r_ij * q)) for q in [0,2*np.pi*self.kf]])
+        # self.ft_correlation /= len(self.r_ij)
 
         self.acceptance_rate = self.accept / steps
 
@@ -177,19 +177,15 @@ class TriangularLattice:
         if self.magnetization is None:
             raise ValueError("Run monte_carlo_loop first!")
 
-        # Calculate autocorrelation for magnetization
         magnetization_autocorr = self.autocorrelation(self.magnetization)
 
-        # Calculate autocorrelation time
         tau_int = self.calculate_autocorrelation_time(magnetization_autocorr)
 
-
-        # Calculate error
         error = self.calculate_error(self.magnetization, tau_int)
         print(error)
-        # Plot magnetization with error bars
+
         steps = np.arange(len(self.magnetization))
-        errors = np.full_like(steps, error)  # Same error for all steps
+        errors = np.full_like(steps, error) 
 
         plt.figure(figsize=(5, 4))
         plt.plot(self.magnetization)
@@ -245,13 +241,13 @@ class TriangularLattice:
         return cor
     
     def calculate_autocorrelation_time(self,correlation):
-
-        cutoff = np.where(correlation < 0)[0]
-        M = cutoff[0]  
-
-        tau_int = 1 + 2 * np.sum(correlation[1:M])
         
-        return tau_int
+        for i, val in enumerate(correlation):
+            if val < 0:
+                return 1 + 2 * np.sum(correlation[1:i])
+
+        return 1 + 2 * np.sum(correlation[1:])
+        
     
 
     def calculate_error(self,data, tau_int):
