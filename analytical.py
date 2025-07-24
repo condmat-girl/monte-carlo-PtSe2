@@ -165,9 +165,9 @@
 
 
 
-############################################################################################
-#################DEPENDENCE ASYMPTOTIC ON CONSTANT K_F #####################################
-############################################################################################
+# ############################################################################################
+# #################DEPENDENCE ASYMPTOTIC ON CONSTANT K_F #####################################
+# ############################################################################################
 import time
 import numpy as np
 import matplotlib.pyplot as plt
@@ -175,52 +175,56 @@ from scipy.special import j0, j1, y0, y1
 from scipy.integrate import quad
 from scipy.stats import linregress
 
-# start = time.time()
+start = time.time()
 
-# def analytical_integral(x, kF, J0_amp):
-#     term1 = x**2 * j0(x) * y0(x)
-#     term2 = x**2 * j1(x) * y1(x)
-#     term3 = x * j0(x) * y1(x)
-#     return -J0_amp / kF**2 * (term1 + term2 - term3)
+def analytical_integral(x, kF, J0_amp):
+    term1 = x**2 * j0(x) * y0(x)
+    term2 = x**2 * j1(x) * y1(x)
+    term3 = x * j0(x) * y1(x)
+    return -J0_amp / kF**2 * (term1 + term2 - term3)
 
-# kF_values = np.linspace(0.0029, 1, 50)
-# intercepts = []
+kF_values = np.linspace(0.0029, 1, 1500)
+intercepts = []
 
-# x_min = 0.01
-# x_max = 200.0
-# num_points = 5000
-# x_vals = np.linspace(x_min, x_max, num_points)
+x_min = 0.01
+x_max = 200.0
+num_points = 5000
+x_vals = np.linspace(x_min, x_max, num_points)
 
-# # Define fit range
-# x_fit_min = 150
-# x_fit_max = 200
+# Define fit range
+x_fit_min = 150
+x_fit_max = 200
 
-# for kF in kF_values:
-#     analytical_vals = analytical_integral(x_vals, kF, J0_amp=1.0)
-#     analytical_vals_shifted = analytical_vals - analytical_vals[0]
+for kF in kF_values:
+    analytical_vals = analytical_integral(x_vals, kF, J0_amp=1.0)
+    analytical_vals_shifted = analytical_vals - analytical_vals[0]
     
-#     # Select fit region
-#     mask = (x_vals >= x_fit_min) & (x_vals <= x_fit_max)
-#     x_fit = x_vals[mask]
-#     y_fit = analytical_vals_shifted[mask]
+    # Select fit region
+    mask = (x_vals >= x_fit_min) & (x_vals <= x_fit_max)
+    x_fit = x_vals[mask]
+    y_fit = analytical_vals_shifted[mask]
 
-#     # Linear fit
-#     slope, intercept, _, _, _ = linregress(x_fit, y_fit)
-#     intercepts.append(intercept)
+    # Linear fit
+    slope, intercept, _, _, _ = linregress(x_fit, y_fit)
+    intercepts.append(intercept)
 
-# np.savetxt('intersepts',intercepts)
-# np.savetxt('kF_values',kF_values)
+# np.savetxt('intersepts_2',intercepts)
+# np.savetxt('kF_values_2',kF_values)
 
-# finish = time.time()
+finish = time.time()
 
+print(finish- start)
 
-# print(finish- start)
+I_fit = intercepts
 
 
 # intercepts = np.loadtxt('intersepts.txt')
 # kF_values = np.loadtxt('kF_values.txt')
 
-# plt.figure(figsize=(5, 4))
+
+
+
+plt.figure(figsize=(5, 4))
 
 
 # # Plot intercept vs kF
@@ -254,14 +258,14 @@ k_B = 1.0  # Boltzmann constant (arbitrary units)
 m = 0.5    # Magnetic moment (arbitrary units)
 
 # Recreate kF_values and load intercepts (I_fit)
-kF_values = np.loadtxt('data/kF_values.txt')
+# kF_values = np.loadtxt('data/kF_values_2')
 
-# For demonstration, simulate I_fit as decreasing function (replace with np.loadtxt('intersepts') if needed)
-# Simulate intercepts similar to original result
-I_fit = np.loadtxt('data/intersepts.txt')
+# # For demonstration, simulate I_fit as decreasing function (replace with np.loadtxt('intersepts') if needed)
+# # Simulate intercepts similar to original result
+# I_fit = np.loadtxt('data/intersepts_2')
 
 # Define a range of delta (chemical doping)
-delta_values = np.linspace(0.001, 1.0, 50)
+delta_values = np.linspace(0.001, 1.0, 1500)
 
 # Prepare TC phase diagram
 TC = np.zeros((len(delta_values), len(kF_values)))
