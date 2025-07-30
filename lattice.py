@@ -34,7 +34,6 @@ class Lattice:
 
         self.N = len(points)
         self.lattice_points = np.array(points)
-        # alias so both old (lattice_points) and new (coords) names work
         self.coords = self.lattice_points
 
         self.magnetic_moments = self.initialize_magnetic_moments()

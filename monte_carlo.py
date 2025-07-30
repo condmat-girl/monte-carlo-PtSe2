@@ -13,6 +13,7 @@ class MonteCarlo:
         self.T = None
         self.E = self.acc.compute_energy()
         self.M = self.lattice.magnetic_moments.mean()
+        self.step = 0
         self.accept = 0
 
 
@@ -34,15 +35,24 @@ class MonteCarlo:
         self.M = spins.mean()
 
 
+
     def monte_carlo_loop(self, steps, warmup, T):
         self.T = T
-
-        for _ in range(warmup):
+        
+        print("Starting warmup phase...")
+        for step in tqdm(range(warmup), disable=False):
             self.metropolis_step()
-
+            self.acc.sample_warmup(step, self.E, self.M)
+            
+            if (step + 1) % 100 == 0:
+                print(f"Warmup step {step + 1}/{warmup}")
+                print(f"Energy τ_int = {self.acc.energy_tau_int:.2f}")
+                print(f"Magnetization τ_int = {self.acc.magnetization_tau_int:.2f}\n")
+        
+        print("Starting production phase...")
         self.accept = 0
         for _ in tqdm(range(steps), disable=False):
             self.metropolis_step()
-            self.acc.sample()
-
+            self.acc.sample_production(self.E, self.M) 
+        
         self.acceptance_rate = self.accept / steps

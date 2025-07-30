@@ -115,8 +115,6 @@ class TriangularLattice:
 
         self.accept = 0
         for _ in range(warmup):
-
-
             
             self.metropolis_step()
 
@@ -224,16 +222,6 @@ class TriangularLattice:
         plt.show()
 
 
-    def autocorrelation(x, max_lag):
-        n = len(x)
-        x = np.array(x)
-        mean_x = np.mean(x)
-        var_x = np.var(x)
-        acf = [1.0]
-        for lag in range(1, max_lag + 1):
-            cov = np.sum((x[:-lag] - mean_x) * (x[lag:] - mean_x)) / n
-            acf.append(cov / var_x)
-        return np.array(acf)
 
     ## universal for any quantities 
     def autocorrelation(self, data):
@@ -255,6 +243,7 @@ class TriangularLattice:
             cor[k] = num / den
 
         return cor
+    
     
     def calculate_autocorrelation_time(self,correlation):
         
