@@ -38,16 +38,41 @@ class MonteCarlo:
 
     def monte_carlo_loop(self, steps, warmup, T):
         self.T = T
-        
+
+        for _ in range(300):
+            self.metropolis_step()
+            self.acc.sample_production(self.E, self.M) 
+                
         print("Starting warmup phase...")
-        for step in tqdm(range(warmup), disable=False):
+        step = 0
+        while True:
             self.metropolis_step()
             self.acc.sample_warmup(step, self.E, self.M)
-            
+
+            energy_tau = self.acc.energy_tau_int
+            magnet_tau = self.acc.magnetization_tau_int
+            tau = max(energy_tau, magnet_tau)
+
             if (step + 1) % 100 == 0:
-                print(f"Warmup step {step + 1}/{warmup}")
-                print(f"Energy τ_int = {self.acc.energy_tau_int:.2f}")
-                print(f"Magnetization τ_int = {self.acc.magnetization_tau_int:.2f}\n")
+                print(f"Warmup step {step + 1}")
+                print(f"Energy τ_int = {energy_tau:.2f}, Magnetization τ_int = {magnet_tau:.2f}")
+
+            step += 1
+            if step > tau:
+                print(f"Warmup finished at step {step} (τ_int = {tau:.2f})\n")
+                break
+
+
+
+        # print("Starting warmup phase...")
+        # for step in tqdm(range(warmup), disable=False):
+        #     self.metropolis_step()
+        #     self.acc.sample_warmup(step, self.E, self.M)
+            
+        #     if (step + 1) % 100 == 0:
+        #         print(f"Warmup step {step + 1}/{warmup}")
+        #         print(f"Energy τ_int = {self.acc.energy_tau_int:.2f}")
+        #         print(f"Magnetization τ_int = {self.acc.magnetization_tau_int:.2f}\n")
         
         print("Starting production phase...")
         self.accept = 0

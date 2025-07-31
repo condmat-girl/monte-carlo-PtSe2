@@ -65,10 +65,10 @@ class Accumulator:
 
     def incremental_autocorrelation(self, data, mean, variance):
         n = len(data)
-        max_lag = min(self.max_lag, n)
+        # max_lag = min(self.max_lag, n)
 
-        cor = np.zeros(max_lag)
-        for k in range(max_lag):
+        cor = np.zeros(self.max_lag)
+        for k in range(self.max_lag):
             num = np.dot(data[:n - k] - mean, data[k:] - mean)
             den = (n - k) * variance
             cor[k] = num / den
