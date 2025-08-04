@@ -1,8 +1,4 @@
-Certainly! Below is a more **formal and professional** version of the `README.md`, suitable for a GitHub repository linked to academic or research work. This version would be appropriate if you're sharing the code in the context of a publication, thesis, or collaboration.
 
----
-
-````markdown
 # Monte Carlo Simulation of RKKY-Coupled Magnetic Impurities in Two Dimensions
 
 This repository provides a Python-based implementation of Monte Carlo simulations for a two-dimensional lattice of magnetic impurities coupled via long-range RKKY interactions. The system is modeled as classical Ising spins randomly distributed on a triangular lattice, and simulations are performed using both the Metropolis algorithm and a modified Wolff cluster update algorithm that respects the oscillatory nature of RKKY coupling.
