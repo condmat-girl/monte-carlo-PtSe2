@@ -33,7 +33,9 @@ class Visualization:
             raise ValueError("Run monte_carlo_loop first!")
 
         m   = np.asarray(self.acc.magnetization)
-        acf = self.acc.autocorrelation(m)
+        acf = self.acc.incremental_autocorrelation(
+            m, m.mean(), m.var() if m.var() > 0 else 1e-12
+        )
         tau = self.acc.calculate_autocorrelation_time(acf)
         err = self.acc.calculate_error(m, tau)
 
