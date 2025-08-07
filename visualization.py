@@ -48,13 +48,18 @@ class Visualization:
         plt.show()
 
     def plot_pair_correlation(self):
+        r = self.lattice.r_ij
         corr = self.acc.compute_pair_correlation()
-        r    = self.lattice.r_ij
+
         plt.figure(figsize=(6, 4))
-        plt.plot(r, corr, ".")
-        plt.xlabel("r")
-        plt.ylabel("⟨S_i S_j⟩(r)")
+        plt.plot(r, corr, ".", alpha=0.6)
+        plt.xlabel(" r")
+        plt.ylabel("⟨Sᵢ Sⱼ⟩(r)")
+        plt.title("Pair Correlation")
+        plt.grid(True)
+        plt.tight_layout()
         plt.show()
+
 
     def plot_ft_pair_correlation(self):
         corr = self.acc.compute_pair_correlation()
@@ -70,3 +75,13 @@ class Visualization:
         plt.ylabel("⟨S_i S_j⟩(q)")
         plt.legend()
         plt.show()
+
+    def bin_pair_correlation(self, r, corr, nbins=50):
+        bins = np.linspace(0, r.max(), nbins + 1)
+        centers = 0.5 * (bins[:-1] + bins[1:])
+        digitized = np.digitize(r, bins)
+        binned_corr = np.array([
+            corr[digitized == i].mean() if np.any(digitized == i) else np.nan
+            for i in range(1, nbins + 1)
+        ])
+        return centers, binned_corr

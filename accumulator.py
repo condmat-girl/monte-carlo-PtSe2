@@ -22,6 +22,11 @@ class Accumulator:
         self.energy_tau_int = 0.0
         self.magnetization_tau_int = 0.0
 
+        ## for pair correlation
+        self.pair_correlation_accum = np.zeros(self.lattice.i_idx.shape)
+        self.pair_correlation = None  # end res
+
+
     def update_running_statistics(self, new_value, current_mean, current_variance, count):
         count += 1
         delta = new_value - current_mean
@@ -56,7 +61,9 @@ class Accumulator:
     def sample_production(self, energy, magnetization):
         self.energy.append(energy)
         self.magnetization.append(magnetization)
-        print(f"Production: E = {energy:10.4f}, M = {magnetization:10.4f}")
+        # print(f"Production: E = {energy:10.4f}, M = {magnetization:10.4f}")
+        self.pair_correlation_accum += self.lattice.compute_pair_correlation()
+
 
     def compute_energy(self):
         s = self.lattice.magnetic_moments
@@ -84,3 +91,9 @@ class Accumulator:
     def calculate_error(self, data, tau_int):
         N = len(data)
         return np.sqrt(2 * tau_int * np.var(data) / N)
+    
+    
+    def compute_pair_correlation(self):
+        if self.pair_correlation is None:
+            raise RuntimeError("Pair correlation has not been computed yet. Run the simulation first.")
+        return self.pair_correlation

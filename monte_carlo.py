@@ -85,6 +85,8 @@ class MonteCarlo:
                 self.wolff_step()
             self.acc.sample_production(self.E, self.M)
 
+        
+        self.acc.pair_correlation = self.acc.pair_correlation_accum / steps
         self.acceptance_rate = self.accept / steps
 
 

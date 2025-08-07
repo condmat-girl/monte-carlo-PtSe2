@@ -72,3 +72,9 @@ class Lattice:
         self.i_idx, self.j_idx = np.triu_indices(self.N, k=1)
         self.r_ij = distances[self.i_idx, self.j_idx]
         return interaction_matrix
+    
+    def compute_pair_correlation(self):
+        s = self.magnetic_moments
+        return s[self.i_idx] * s[self.j_idx]
+
+    
