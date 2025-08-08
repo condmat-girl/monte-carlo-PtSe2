@@ -78,6 +78,7 @@ class MonteCarlo:
         # --- Production Phase ---
         print("Starting production phase...")
         self.accept = 0
+
         for _ in tqdm(range(steps), disable=False):
             if method == "metropolis":
                 self.metropolis_step()
@@ -86,7 +87,14 @@ class MonteCarlo:
             self.acc.sample_production(self.E, self.M)
 
         
-        self.acc.pair_correlation = self.acc.pair_correlation_accum / steps
+        # self.acc.pair_correlation = self.acc.pair_correlation_accum / steps
+        # Compute average pair correlation and bin
+        # corr_avg = self.acc.pair_correlation_accum / steps
+        # corr_sum, _ = np.histogram(self.lattice.r_ij, bins=self.lattice.bin_edges, weights=corr_avg)
+        # self.acc.binned_pair_correlation = corr_sum / (self.lattice.hist + 1e-10)
+
+        self.acc.process_pair_correlation(steps)
+
         self.acceptance_rate = self.accept / steps
 
 

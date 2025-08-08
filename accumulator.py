@@ -23,8 +23,13 @@ class Accumulator:
         self.magnetization_tau_int = 0.0
 
         ## for pair correlation
-        self.pair_correlation_accum = np.zeros(self.lattice.i_idx.shape)
-        self.pair_correlation = None  # end res
+    
+        # self.pair_correlation_accum = np.zeros_like(self.lattice.i_idx, dtype=float)
+        # self.binned_pair_correlation = None
+
+        self.correlation_matrix = np.zeros((self.lattice.N, self.lattice.N))
+
+
 
 
     def update_running_statistics(self, new_value, current_mean, current_variance, count):
@@ -62,7 +67,10 @@ class Accumulator:
         self.energy.append(energy)
         self.magnetization.append(magnetization)
         # print(f"Production: E = {energy:10.4f}, M = {magnetization:10.4f}")
-        self.pair_correlation_accum += self.lattice.compute_pair_correlation()
+        # self.pair_correlation_accum += self.lattice.compute_pair_correlation()
+        spins = self.lattice.magnetic_moments
+        self.correlation_matrix += np.outer(spins, spins)
+
 
 
     def compute_energy(self):
@@ -97,3 +105,23 @@ class Accumulator:
         if self.pair_correlation is None:
             raise RuntimeError("Pair correlation has not been computed yet. Run the simulation first.")
         return self.pair_correlation
+
+    def get_binned_pair_correlation(self):
+        if self.binned_pair_correlation is None:
+            raise RuntimeError("Pair correlation has not been computed yet.")
+        return self.lattice.bin_centers, self.binned_pair_correlation
+
+    def process_pair_correlation(self, steps):
+        correlation_matrix = self.correlation_matrix / steps
+        r_ij = self.lattice.distances  
+
+        i, j = np.triu_indices(self.lattice.N, k=0)
+        r_flat = r_ij[i, j]
+        correlation_matrix_flat = correlation_matrix[i, j]
+
+        bin_edges = self.lattice.bin_edges
+        hist, _ = np.histogram(r_flat, bins=bin_edges)
+        corr_sum, _ = np.histogram(r_flat, bins=bin_edges, weights=correlation_matrix_flat)
+
+        self.binned_pair_correlation = corr_sum / (hist + 1e-10)
+        self.bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])

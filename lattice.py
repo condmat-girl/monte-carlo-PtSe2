@@ -71,6 +71,10 @@ class Lattice:
         self.distances = distances
         self.i_idx, self.j_idx = np.triu_indices(self.N, k=1)
         self.r_ij = distances[self.i_idx, self.j_idx]
+        ## experiment
+        self.hist, self.bin_edges = np.histogram(self.r_ij, bins="fd")
+        self.bin_centers = 0.5 * (self.bin_edges[:-1] + self.bin_edges[1:])
+
         return interaction_matrix
     
     def compute_pair_correlation(self):

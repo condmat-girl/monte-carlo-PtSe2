@@ -76,12 +76,31 @@ class Visualization:
         plt.legend()
         plt.show()
 
-    def bin_pair_correlation(self, r, corr, nbins=50):
-        bins = np.linspace(0, r.max(), nbins + 1)
-        centers = 0.5 * (bins[:-1] + bins[1:])
-        digitized = np.digitize(r, bins)
-        binned_corr = np.array([
-            corr[digitized == i].mean() if np.any(digitized == i) else np.nan
-            for i in range(1, nbins + 1)
-        ])
-        return centers, binned_corr
+    # def plot_pair_correlation(self):
+    #     r, corr = self.acc.get_binned_pair_correlation()
+
+    #     plt.figure(figsize=(6, 4))
+    #     plt.plot(r, corr, "-", lw=2)
+    #     plt.xlabel("Distance r")
+    #     plt.ylabel("⟨Sᵢ Sⱼ⟩(r)")
+    #     # plt.title("Pair Correlation")
+    #     plt.grid(True)
+    #     plt.tight_layout()
+    #     plt.show()
+
+    def plot_autocorrelation(self):
+        """
+        Plot the radially averaged spin–spin autocorrelation ⟨SᵢSⱼ⟩(r).
+        """
+        r = self.acc.bin_centers
+        corr = self.acc.binned_pair_correlation
+
+        plt.figure(figsize=(6, 4))
+        plt.plot(r, corr, "-", lw=2)
+        plt.axhline(0, color="gray", linestyle="--", linewidth=1)
+        plt.xlabel("Distance r")
+        plt.ylabel("⟨Sᵢ Sⱼ⟩(r)")
+        plt.title("Spin Autocorrelation Function")
+        plt.grid(True)
+        plt.tight_layout()
+        plt.show()
