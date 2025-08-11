@@ -39,6 +39,16 @@ class MonteCarlo:
         if method == "wolff":
             self.precompute_bond_probabilities()
 
+        # --- Pre-Warmup Phase (Burn-in) ---
+        burn_in_steps = self.acc.max_lag  # or any fixed number (e.g., 300)
+        print(f"Running {burn_in_steps} burn-in steps...")
+        for _ in range(burn_in_steps):
+            if method == "metropolis":
+                self.metropolis_step()
+            elif method == "wolff":
+                self.wolff_step()
+            self.acc.sample_production(self.E, self.M)
+
         # --- Warmup Phase ---
         print("Starting warmup phase...")
         step = 0
@@ -48,7 +58,6 @@ class MonteCarlo:
             elif method == "wolff":
                 self.wolff_step()
             self.acc.sample_warmup(step, self.E, self.M)
-
 
             tau = max(self.acc.energy_tau_int, self.acc.magnetization_tau_int)
 
