@@ -1,127 +1,126 @@
 import numpy as np
 
 class Accumulator:
-    def __init__(self, lattice, max_lag=256):
+    def __init__(self, lattice, max_lag=1024):
         self.lattice = lattice
+        self.max_lag = int(max_lag)
+
         self.energy = []
         self.magnetization = []
 
-        # for warmup phase
+        # Welford-like incremental mean/variance
         self.energy_mean = 0.0
-        self.energy_variance = 0.0
+        self.energy_var  = 0.0
         self.energy_count = 0
 
-        self.magnetization_mean = 0.0
-        self.magnetization_variance = 0.0
-        self.magnetization_count = 0
+        self.mag_mean = 0.0
+        self.mag_var  = 0.0
+        self.mag_count = 0
 
-        ## for acf
-        self.max_lag = max_lag 
-        self.energy_autocorr = np.zeros(max_lag)
-        self.magnetization_autocorr = np.zeros(max_lag)
+        # ACFs 
+        self.energy_autocorr = None
+        self.magnetization_autocorr = None
         self.energy_tau_int = 0.0
         self.magnetization_tau_int = 0.0
 
-        ## for pair correlation
-    
-        # self.pair_correlation_accum = np.zeros_like(self.lattice.i_idx, dtype=float)
-        # self.binned_pair_correlation = None
-
+        # pair correlation 
         self.correlation_matrix = np.zeros((self.lattice.N, self.lattice.N))
+        self.binned_pair_correlation = None
+        self.bin_centers = None
 
+    @staticmethod
+    def _update_running_stats(x, mean, var, count):
 
-
-
-    def update_running_statistics(self, new_value, current_mean, current_variance, count):
         count += 1
-        delta = new_value - current_mean
-        updated_mean = current_mean + delta / count
-        updated_variance = (count - 1) / count * current_variance + (delta ** 2) / count
-        return updated_mean, updated_variance, count
+        delta = x - mean
+        mean += delta / count
+        var += (delta * (x - mean) - var) / count
+        return mean, var, count
 
     def sample_warmup(self, step, energy, magnetization):
 
-        self.energy_mean, self.energy_variance, self.energy_count = self.update_running_statistics(
-            energy, self.energy_mean, self.energy_variance, step
-        )
+        self.energy_mean, self.energy_var, self.energy_count = \
+            self._update_running_stats(energy, self.energy_mean, self.energy_var, self.energy_count)
 
-        self.magnetization_mean, self.magnetization_variance, self.magnetization_count = self.update_running_statistics(
-            magnetization, self.magnetization_mean, self.magnetization_variance, step
-        )
+        self.mag_mean, self.mag_var, self.mag_count = \
+            self._update_running_stats(magnetization, self.mag_mean, self.mag_var, self.mag_count)
 
         self.energy.append(energy)
         self.magnetization.append(magnetization)
 
-
-        self.energy_autocorr = self.incremental_autocorrelation(
-            self.energy, self.energy_mean, self.energy_variance
+        # dynamic-length autocorrelation
+        self.energy_autocorr = self._autocorr_dynamic(
+            self.energy, self.energy_mean, self.energy_var
         )
-        self.energy_tau_int = self.calculate_autocorrelation_time(self.energy_autocorr)
+        self.energy_tau_int = self._tau_int(self.energy_autocorr)
 
-        self.magnetization_autocorr = self.incremental_autocorrelation(
-            self.magnetization, self.magnetization_mean, self.magnetization_variance
+        self.magnetization_autocorr = self._autocorr_dynamic(
+            self.magnetization, self.mag_mean, self.mag_var
         )
-        self.magnetization_tau_int = self.calculate_autocorrelation_time(self.magnetization_autocorr)
+        self.magnetization_tau_int = self._tau_int(self.magnetization_autocorr)
 
     def sample_production(self, energy, magnetization):
         self.energy.append(energy)
         self.magnetization.append(magnetization)
-        # print(f"Production: E = {energy:10.4f}, M = {magnetization:10.4f}")
-        # self.pair_correlation_accum += self.lattice.compute_pair_correlation()
-        spins = self.lattice.magnetic_moments
-        self.correlation_matrix += np.outer(spins, spins)
 
-
+        s = self.lattice.magnetic_moments
+        self.correlation_matrix += np.outer(s, s)
 
     def compute_energy(self):
         s = self.lattice.magnetic_moments
         J = self.lattice.interaction_matrix
         return s @ J @ s
 
-    def incremental_autocorrelation(self, data, mean, variance):
+    def _autocorr_dynamic(self, data, mean, variance):
         n = len(data)
-        # max_lag = min(self.max_lag, n)
+        if n < 2 or variance <= 1e-15:
+            return np.array([10.0])  # trivial ACF
 
-        cor = np.zeros(self.max_lag)
-        for k in range(self.max_lag):
-            num = np.dot(data[:n - k] - mean, data[k:] - mean)
+        lag_max = int(min(self.max_lag, n - 1))
+        x = np.asarray(data, dtype=float) - mean
+
+        acf = np.empty(lag_max + 1, dtype=float)
+        for k in range(lag_max + 1):
+            num = np.dot(x[:n - k], x[k:])
             den = (n - k) * variance
-            cor[k] = num / den
+            acf[k] = num / den
+        return acf
 
-        return cor
+    @staticmethod
+    def _tau_int(acf):
+        if acf is None or acf.size == 0:
+            return 0.0
+        tail = acf[1:]
+        s = 0.0
+        for v in tail:
+            if v <= 0.0:
+                break
+            s += v
+        return 1.0 + 2.0 * s
 
-    def calculate_autocorrelation_time(self, correlation):
-        for i, val in enumerate(correlation[1:], 1):
-            if val < 0:
-                return 1 + 2 * np.sum(correlation[1:i])
-        return 1 + 2 * np.sum(correlation[1:])
+    @staticmethod
+    def calculate_error(data, tau_int):
+        n = len(data)
+        if n == 0:
+            return np.nan
+        return np.sqrt(2.0 * max(tau_int, 1.0) * np.var(data, ddof=0) / n)
 
-    def calculate_error(self, data, tau_int):
-        N = len(data)
-        return np.sqrt(2 * tau_int * np.var(data) / N)
-    
-    
-    def compute_pair_correlation(self):
-        if self.pair_correlation is None:
-            raise RuntimeError("Pair correlation has not been computed yet. Run the simulation first.")
-        return self.pair_correlation
+    def process_pair_correlation(self, n_prod_steps):
+        corr = self.correlation_matrix / max(n_prod_steps, 1)
+        r_ij = self.lattice.distances
+
+        iu, ju = np.triu_indices(self.lattice.N, k=0)
+        r_flat = r_ij[iu, ju]
+        w_flat = corr[iu, ju]
+
+        edges = self.lattice.bin_edges
+        counts, _ = np.histogram(r_flat, bins=edges)
+        sums,   _ = np.histogram(r_flat, bins=edges, weights=w_flat)
+
+        self.binned_pair_correlation = sums / (counts + 1e-12)
+        self.bin_centers = 0.5 * (edges[:-1] + edges[1:])
 
     def get_binned_pair_correlation(self):
         if self.binned_pair_correlation is None:
-            raise RuntimeError("Pair correlation has not been computed yet.")
-        return self.lattice.bin_centers, self.binned_pair_correlation
-
-    def process_pair_correlation(self, steps):
-        correlation_matrix = self.correlation_matrix / steps
-        r_ij = self.lattice.distances  
-
-        i, j = np.triu_indices(self.lattice.N, k=0)
-        r_flat = r_ij[i, j]
-        correlation_matrix_flat = correlation_matrix[i, j]
-
-        bin_edges = self.lattice.bin_edges
-        hist, _ = np.histogram(r_flat, bins=bin_edges)
-        corr_sum, _ = np.histogram(r_flat, bins=bin_edges, weights=correlation_matrix_flat)
-
-        self.binned_pair_correlation = corr_sum / (hist + 1e-10)
-        self.bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+            raise RuntimeError("Pair correlation not computed yet. Call process_pair_correlation first.")
+        return self.bin_centers, self.binned_pair_correlation
