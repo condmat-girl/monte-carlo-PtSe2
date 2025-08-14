@@ -29,17 +29,40 @@ class Accumulator:
 
         self.correlation_matrix = np.zeros((self.lattice.N, self.lattice.N))
 
+        # костыли
+        self.corelation = []
+
 
 
 
     def update_running_statistics(self, new_value, current_mean, current_variance, count):
+
         count += 1
         delta = new_value - current_mean
         updated_mean = current_mean + delta / count
         updated_variance = (count - 1) / count * current_variance + (delta ** 2) / count
+
         return updated_mean, updated_variance, count
+    
+
+    # def update_running_statistics(self, new_value, current_mean, current_variance, count):
+        
+    #     prev_n = count
+    #     count += 1
+    #     if count == 1:
+    #         return float(new_value), 0.0, count
+    #     delta = new_value - current_mean
+    #     updated_mean = current_mean + delta / count
+    #     delta2 = new_value - updated_mean
+    #     M2 = current_variance * (prev_n - 1) + delta * delta2 if prev_n > 1 else delta * delta2
+    #     updated_variance = M2 / (count - 1)
+    #     return updated_mean, updated_variance, count
+
+    
 
     def sample_warmup(self, step, energy, magnetization):
+
+
 
         self.energy_mean, self.energy_variance, self.energy_count = self.update_running_statistics(
             energy, self.energy_mean, self.energy_variance, step
@@ -80,10 +103,12 @@ class Accumulator:
 
     def incremental_autocorrelation(self, data, mean, variance):
         n = len(data)
-        # max_lag = min(self.max_lag, n)
+        data = np.asarray(data)
 
-        cor = np.zeros(self.max_lag)
-        for k in range(self.max_lag):
+        max_lag = min(self.max_lag, n)
+
+        cor = np.zeros(max_lag)
+        for k in range(max_lag):
             num = np.dot(data[:n - k] - mean, data[k:] - mean)
             den = (n - k) * variance
             cor[k] = num / den
@@ -91,6 +116,7 @@ class Accumulator:
         return cor
 
     def calculate_autocorrelation_time(self, correlation):
+        self.corelation = correlation
         for i, val in enumerate(correlation[1:], 1):
             if val < 0:
                 return 1 + 2 * np.sum(correlation[1:i])

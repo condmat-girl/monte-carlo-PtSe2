@@ -6,6 +6,8 @@ class Lattice:
 
     def __init__(self, rows: int, cols: int, doping: float,
                  kf: float = 1.0, J0: float = 1.0):
+        
+        self.rng = np.random.default_rng(seed=12)
         self.kf, self.J0 = kf, J0
 
         self.rows, self.cols = rows, cols
@@ -24,7 +26,7 @@ class Lattice:
         points = []
         for i in range(rows):
             for j in range(cols):
-                if np.random.rand() < doping:
+                if self.rng.random() < doping:
                     x = j + 0.5 * (i % 2)
                     y = i * (np.sqrt(3) / 2)
                     points.append((x, y))
@@ -40,7 +42,7 @@ class Lattice:
         self.interaction_matrix = self.compute_rkky_matrix()
 
     def initialize_magnetic_moments(self):
-        return 2 * (np.random.random(self.N) > 0.5) - 1
+        return 2 * (self.rng.random(self.N) > 0.5) - 1
 
     def rkky_interaction_2d(self, r):
         if r == 0:
@@ -78,6 +80,7 @@ class Lattice:
         return interaction_matrix
     
     def compute_pair_correlation(self):
+        
         s = self.magnetic_moments
         return s[self.i_idx] * s[self.j_idx]
 

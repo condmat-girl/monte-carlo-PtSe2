@@ -8,7 +8,8 @@ class MonteCarlo:
     def __init__(self, lattice):
         self.lattice = lattice
         self.acc = Accumulator(lattice)         
-        self.rng = np.random.default_rng()
+        self.rng = np.random.default_rng(seed=42)
+
 
         self.T = None
         self.E = self.acc.compute_energy()
@@ -39,15 +40,15 @@ class MonteCarlo:
         if method == "wolff":
             self.precompute_bond_probabilities()
 
-        # --- Pre-Warmup Phase (Burn-in) ---
-        burn_in_steps = self.acc.max_lag  # or any fixed number (e.g., 300)
-        print(f"Running {burn_in_steps} burn-in steps...")
-        for _ in range(burn_in_steps):
-            if method == "metropolis":
-                self.metropolis_step()
-            elif method == "wolff":
-                self.wolff_step()
-            self.acc.sample_production(self.E, self.M)
+        # # --- Pre-Warmup Phase (Burn-in) ---
+        # burn_in_steps = self.acc.max_lag  # or any fixed number (e.g., 300)
+        # print(f"Running {burn_in_steps} burn-in steps...")
+        # for _ in range(burn_in_steps):
+        #     if method == "metropolis":
+        #         self.metropolis_step()
+        #     elif method == "wolff":
+        #         self.wolff_step()
+        #     self.acc.sample_production(self.E, self.M)
 
         # --- Warmup Phase ---
         print("Starting warmup phase...")
@@ -65,15 +66,17 @@ class MonteCarlo:
                 print(f"Warmup step {step + 1}")
                 print(f"Energy τ_int = {self.acc.energy_tau_int:.2f}, Magnetization τ_int = {self.acc.magnetization_tau_int:.2f}")
 
-            step += 1
+
      
-            if step > tau:
+            if step > tau + 100:
                 print(f"Warmup finished at step {step} (τ_int = {tau:.2f})\n")
                 
                 #  to retain only relative data 
                 self.acc.energy.clear()
                 self.acc.magnetization.clear()
                 break
+
+            step += 1
 
         # --- Production Phase ---
         print("Starting production phase...")
