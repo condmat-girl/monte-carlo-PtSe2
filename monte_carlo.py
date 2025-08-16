@@ -40,17 +40,7 @@ class MonteCarlo:
         if method == "wolff":
             self.precompute_bond_probabilities()
 
-        # # --- Pre-Warmup Phase (Burn-in) ---
-        # burn_in_steps = self.acc.max_lag  # or any fixed number (e.g., 300)
-        # print(f"Running {burn_in_steps} burn-in steps...")
-        # for _ in range(burn_in_steps):
-        #     if method == "metropolis":
-        #         self.metropolis_step()
-        #     elif method == "wolff":
-        #         self.wolff_step()
-        #     self.acc.sample_production(self.E, self.M)
 
-        # --- Warmup Phase ---
         print("Starting warmup phase...")
         step = 0
         while True:
@@ -67,8 +57,7 @@ class MonteCarlo:
                 print(f"Energy τ_int = {self.acc.energy_tau_int:.2f}, Magnetization τ_int = {self.acc.magnetization_tau_int:.2f}")
 
 
-     
-            if step > tau + 100:
+            if step > tau * 7:
                 print(f"Warmup finished at step {step} (τ_int = {tau:.2f})\n")
                 
                 #  to retain only relative data 
@@ -78,7 +67,6 @@ class MonteCarlo:
 
             step += 1
 
-        # --- Production Phase ---
         print("Starting production phase...")
         self.accept = 0
 
@@ -89,12 +77,6 @@ class MonteCarlo:
                 self.wolff_step()
             self.acc.sample_production(self.E, self.M)
 
-        
-        # self.acc.pair_correlation = self.acc.pair_correlation_accum / steps
-        # Compute average pair correlation and bin
-        # corr_avg = self.acc.pair_correlation_accum / steps
-        # corr_sum, _ = np.histogram(self.lattice.r_ij, bins=self.lattice.bin_edges, weights=corr_avg)
-        # self.acc.binned_pair_correlation = corr_sum / (self.lattice.hist + 1e-10)
 
         self.acc.process_pair_correlation(steps)
 

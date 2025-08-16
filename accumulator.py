@@ -1,7 +1,7 @@
 import numpy as np
 
 class Accumulator:
-    def __init__(self, lattice, max_lag=256):
+    def __init__(self, lattice, max_lag=1_000):
         self.lattice = lattice
         self.energy = []
         self.magnetization = []
@@ -22,11 +22,7 @@ class Accumulator:
         self.energy_tau_int = 0.0
         self.magnetization_tau_int = 0.0
 
-        ## for pair correlation
-    
-        # self.pair_correlation_accum = np.zeros_like(self.lattice.i_idx, dtype=float)
-        # self.binned_pair_correlation = None
-
+   
         self.correlation_matrix = np.zeros((self.lattice.N, self.lattice.N))
 
         # костыли
@@ -40,25 +36,12 @@ class Accumulator:
         count += 1
         delta = new_value - current_mean
         updated_mean = current_mean + delta / count
-        updated_variance = (count - 1) / count * current_variance + (delta ** 2) / count
+        updated_variance = (count - 1) / count * current_variance + (new_value - updated_mean)*delta / count
 
         return updated_mean, updated_variance, count
     
 
-    # def update_running_statistics(self, new_value, current_mean, current_variance, count):
-        
-    #     prev_n = count
-    #     count += 1
-    #     if count == 1:
-    #         return float(new_value), 0.0, count
-    #     delta = new_value - current_mean
-    #     updated_mean = current_mean + delta / count
-    #     delta2 = new_value - updated_mean
-    #     M2 = current_variance * (prev_n - 1) + delta * delta2 if prev_n > 1 else delta * delta2
-    #     updated_variance = M2 / (count - 1)
-    #     return updated_mean, updated_variance, count
-
-    
+  
 
     def sample_warmup(self, step, energy, magnetization):
 
@@ -126,6 +109,30 @@ class Accumulator:
         N = len(data)
         return np.sqrt(2 * tau_int * np.var(data) / N)
     
+
+    def compute_susceptibility(self, magnetization, T, N):
+        M = np.asarray(magnetization)
+        mean_M = np.mean(M)
+        mean_M2 = np.mean(M**2)
+        return (N / T) * (mean_M2 - mean_M**2)
+
+    def compute_susceptibility_error(self, magnetization, T, N):
+        M = np.asarray(magnetization)
+        M2 = M ** 2
+        mean_M = M.mean()
+        mean_M2 = M2.mean()
+        var_M = M.var(ddof=1)
+        var_M2 = M2.var(ddof=1)
+        cov = np.cov(M, M2, ddof=1)[0, 1]
+        d_chi_d_M = -2 * N / T * mean_M
+        d_chi_d_M2 = N / T
+        error = np.sqrt(
+            (d_chi_d_M ** 2) * var_M / len(M) +
+            (d_chi_d_M2 ** 2) * var_M2 / len(M) +
+            2 * d_chi_d_M * d_chi_d_M2 * cov / len(M)
+        )
+        return error
+
     
     def compute_pair_correlation(self):
         if self.pair_correlation is None:
