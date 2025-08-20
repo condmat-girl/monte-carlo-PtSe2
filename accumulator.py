@@ -91,37 +91,7 @@ class Accumulator:
         J = self.lattice.interaction_matrix
         return s @ J @ s
 
-    def autocorr(self, x):
-        x = np.asarray(x, float)
-        x = x - x.mean()
-        n = len(x)
-        result = np.correlate(x, x, mode='full')
-        acov = result[n-1:]   # lags 0..n-1
-        acov /= np.arange(n, 0, -1)   # unbiased: divide by N-k
-        return acov / acov[0]         # normalize → acf[0]=1
-
-
-    # def incremental_autocorrelation(self, data, mean, variance):
-    #     n = len(data)
-    #     data = np.asarray(data)
-
-    #     max_lag = min(self.max_lag, n)
-
-    #     cor = np.zeros(max_lag)
-    #     for k in range(max_lag):
-    #         num = np.dot(data[:n - k] - mean, data[k:] - mean)
-    #         den = (n - k) * variance
-    #         cor[k] = num / den
-
-    #     return cor
-
-    def calculate_autocorrelation_time(self, correlation):
-        self.corelation = correlation
-        for i, val in enumerate(correlation[1:], 1):
-            if val < 0:
-                return 1 + 2 * np.sum(correlation[1:i])
-        return 1 + 2 * np.sum(correlation[1:])
-
+  
     def calculate_error(self, data, tau_int):
         N = len(data)
         return np.sqrt(2 * tau_int * np.var(data) / N)
@@ -159,3 +129,23 @@ class Accumulator:
 
         self.binned_pair_correlation = corr_sum / (hist + 1e-10)
         self.bin_centers = 0.5 * (bin_edges[:-1] + bin_edges[1:])
+
+
+
+    def autocorr_fft(self, x, unbiased=True):
+        x = np.asarray(x, float)
+        n = x.size
+        x = x - x.mean()
+        nfft = 1 << (2*n - 1).bit_length()
+        f = np.fft.rfft(x, n=nfft)
+        acov = np.fft.irfft(f * np.conjugate(f), n=nfft)[:n]
+        var = acov[0] / n
+        denom = var * (n - np.arange(n)) if unbiased else var * n
+        return acov / denom
+
+    def tau_int_from_acf(self, acf):
+        # first non-positive crossing “window”; fall back to full sum
+        for i, v in enumerate(acf[1:], 1):
+            if v <= 0:
+                return 1.0 + 2.0 * np.sum(acf[1:i])
+        return 1.0 + 2.0 * np.sum(acf[1:])

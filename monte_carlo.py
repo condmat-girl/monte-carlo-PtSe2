@@ -36,7 +36,8 @@ class MonteCarlo:
             spins[i] *= -1
             self.E += dE
             self.accept += 1
-        self.M = np.mean(spins)      
+        self.M = np.mean(spins)  
+        self.M2 = (self.M)**2
         self.chi = self.lattice.N * (1 - self.M**2) / self.T
 
     def run_loop(self, warmup_steps, steps, T, method="metropolis",
@@ -44,11 +45,10 @@ class MonteCarlo:
         
 
         self.T = T
-        self.lattice.reset_spins()
+        # self.lattice.reset_spins()
 
-        # # only for disorder system with different prob's
-        # if method == "wolff":
-        #     self.precompute_bond_probabilities()
+        if method == "wolff":
+            self.precompute_bond_probabilities()
 
 
         print("Starting warmup phase...")
@@ -92,100 +92,111 @@ class MonteCarlo:
     ### wolff functional
 
         
-        ### for regular lattice
-    def wolff_step(self, return_cluster=False):
-        spins = self.lattice.magnetic_moments
-        N     = self.lattice.N
-        T     = self.T
-        beta  = 1.0 / T
+    #     ### for regular lattice
+    # def wolff_step(self, return_cluster=False):
+    #     spins = self.lattice.magnetic_moments
+    #     N     = self.lattice.N
+    #     T     = self.T
+    #     beta  = 1.0 / T
 
-        seed = int(self.rng.integers(N))
-        s0   = spins[seed]  
+    #     seed = int(self.rng.integers(N))
+    #     s0   = spins[seed]  
 
-        visited = np.zeros(N, dtype=bool)
-        stack   = [seed]
-        cluster = []
-        visited[seed] = True
+    #     visited = np.zeros(N, dtype=bool)
+    #     stack   = [seed]
+    #     cluster = []
+    #     visited[seed] = True
 
-        P_add = 1 - np.exp(-2 * beta * self.lattice.J)
+    #     P_add = 1 - np.exp(-2 * beta * self.lattice.J)
 
-        while stack:
-            i = stack.pop()
-            if spins[i] != s0:
-                continue
+    #     while stack:
+    #         i = stack.pop()
+    #         if spins[i] != s0:
+    #             continue
 
-            cluster.append(i)
+    #         cluster.append(i)
 
-            x, y = self.lattice.index_to_coords(i)
-            for nx, ny in self.lattice.get_neighbors_coords(x, y):
-                j = self.lattice.coords_to_index(nx, ny)
-                if not visited[j] and spins[j] == s0:
+    #         x, y = self.lattice.index_to_coords(i)
+    #         for nx, ny in self.lattice.get_neighbors_coords(x, y):
+    #             j = self.lattice.coords_to_index(nx, ny)
+    #             if not visited[j] and spins[j] == s0:
 
-                    if self.rng.random() < P_add:    
-                        visited[j] = True
-                        stack.append(j)
-                else:
-                    visited[j] = True  
+    #                 if self.rng.random() < P_add:    
+    #                     visited[j] = True
+    #                     stack.append(j)
+    #             else:
+    #                 visited[j] = True  
 
-        cluster = np.asarray(cluster, dtype=int)
-        spins[cluster] *= -1
+    #     cluster = np.asarray(cluster, dtype=int)
+    #     spins[cluster] *= -1
 
-        self.M = np.mean(spins)
-        self.M2 = (self.M)**2
-        self.mabs = np.mean(np.abs(spins))
-        self.E = self.compute_energy()  
-        self.chi = self.lattice.N * (1 - self.M**2) / self.T
+    #     self.M = np.mean(spins)
+    #     self.M2 = (self.M)**2
+    #     self.mabs = np.mean(np.abs(spins))
+    #     self.E = self.compute_energy()  
+    #     self.chi = self.lattice.N * (1 - self.M**2) / self.T
 
-        if return_cluster:
-            return cluster
+    #     if return_cluster:
+    #         return cluster
 
 
 
 
     ### here everything is for disorder model 
 
-    # def precompute_bond_probabilities(self):
-    #     J = self.lattice.interaction_matrix
-    #     beta = 1.0 / self.T
+    def precompute_bond_probabilities(self):
+        J = self.lattice.interaction_matrix
+        beta = 1.0 / self.T
 
-    #     deltaE_same = -2 * J
-    #     deltaE_opp = +2 * J
+        deltaE_same = -2 * J
+        deltaE_opp = +2 * J
 
-    #     self.padd_same = 1 - np.exp(np.minimum(0, -beta * deltaE_same))
-    #     self.padd_opp = 1 - np.exp(np.minimum(0, -beta * deltaE_opp))
+        self.padd_same = 1 - np.exp(np.minimum(0, -beta * deltaE_same))
+        self.padd_opp = 1 - np.exp(np.minimum(0, -beta * deltaE_opp))
 
-    # def wolff_step(self):
-    #     spins = self.lattice.magnetic_moments
-    #     J = self.lattice.interaction_matrix
-    #     N = self.lattice.N
+    def wolff_step(self, return_cluster=False):
+        spins = self.lattice.magnetic_moments
+        J = self.lattice.interaction_matrix
+        N = self.lattice.N
 
-    #     seed = self.rng.integers(N)
-    #     cluster = set([seed])
-    #     to_check = [seed]
-    #     visited = np.zeros(N, dtype=bool)
-    #     visited[seed] = True
+        seed = self.rng.integers(N)
+        cluster = set([seed])
+        to_check = [seed]
+        visited = np.zeros(N, dtype=bool)
+        visited[seed] = True
 
-    #     Si = spins[seed]
+        Si = spins[seed]
 
-    #     while to_check:
-    #         i = to_check.pop()
-    #         Si = spins[i]
-    #         neighbors = np.nonzero(J[i])[0]
+        while to_check:
+            i = to_check.pop()
+            Si = spins[i]
+            neighbors = np.nonzero(J[i])[0]
 
-    #         for j in neighbors:
-    #             if visited[j]:
-    #                 continue
-    #             Sj = spins[j]
-    #             padd = self.padd_same[i, j] if Si == Sj else self.padd_opp[i, j]
-    #             if self.rng.random() < padd:
-    #                 visited[j] = True
-    #                 cluster.add(j)
-    #                 to_check.append(j)
+            for j in neighbors:
+                if visited[j]:
+                    continue
+                Sj = spins[j]
+                padd = self.padd_same[i, j] if Si == Sj else self.padd_opp[i, j]
+                if self.rng.random() < padd:
+                    visited[j] = True
+                    cluster.add(j)
+                    to_check.append(j)
 
-    #     # Flip cluster
-    #     for idx in cluster:
-    #         spins[idx] *= -1
+        # Flip cluster
+        for idx in cluster:
+            spins[idx] *= -1
 
-    #     self.E = self.acc.compute_energy()
-    #     self.M = spins.mean()
-    #     self.accept += 1
+        self.E = self.acc.compute_energy()
+        self.M = spins.mean()
+
+        self.M2 = (self.M)**2
+        self.E = self.compute_energy()  
+        self.chi = self.lattice.N * (1 - self.M**2) / self.T
+
+        self.accept += 1
+
+
+        if return_cluster:
+            return cluster
+
+
