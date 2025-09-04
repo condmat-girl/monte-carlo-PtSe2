@@ -71,7 +71,6 @@ class MonteCarlo:
 
                     # self.vis.plot_grid_with_cluster_save(cluster_idx, step, output_dir=outdir)
 
-        # Create GIF from warmup frames only
         if save_warmup:
             self.vis.create_gif_from_frames(
                 output_dir=outdir,
