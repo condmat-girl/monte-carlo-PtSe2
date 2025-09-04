@@ -2,7 +2,7 @@ import numpy as np
 from tqdm import tqdm
 from accumulator import Accumulator
 from visualization import Visualization
-
+# from visualization_ising import Visualization_Ising
 
 
 class MonteCarlo:
@@ -11,6 +11,7 @@ class MonteCarlo:
         self.lattice = lattice
         self.acc = Accumulator(lattice)
         self.vis = Visualization(lattice, self.acc)
+        # self.vis_is = Visualization_Ising(lattice,self.acc)
         self.rng = np.random.default_rng(seed=42)
 
         self.T = None
@@ -41,11 +42,10 @@ class MonteCarlo:
         self.chi = self.lattice.N * (1 - self.M**2) / self.T
 
     def run_loop(self, warmup_steps, steps, T, method="metropolis",
-                save_warmup=False, outdir="frames"):
+                save_warmup=False , outdir="frames"):
         
 
         self.T = T
-        # self.lattice.reset_spins()
 
         if method == "wolff":
             self.precompute_bond_probabilities()
@@ -55,24 +55,27 @@ class MonteCarlo:
         for step in tqdm(range(warmup_steps), disable=False):
             if method == "metropolis":
                 self.metropolis_step()
-                if save_warmup:
-                    self.vis.plot_lattice_save(
-                        self.lattice.magnetic_moments,
-                        self.lattice.Lx,
-                        self.lattice.Ly,
-                        step,
+                if save_warmup and (step % 1_000 == 0):
+                    self.vis.plot_coords_save(
+                        int(step//1_00),
                         output_dir=outdir
                     )
             elif method == "wolff":
-                cluster_idx = self.wolff_step(return_cluster=True)
                 if save_warmup:
-                    self.vis.plot_grid_with_cluster_save(cluster_idx, step, output_dir=outdir)
+                    (cluster_idx, edges_fm, edges_afm) = self.wolff_step(return_cluster=True)
+                    self.vis.plot_cluster_save(cluster_idx, edges_fm, edges_afm, step, self.lattice.N, output_dir=outdir)
+                else:
+                    self.wolff_step(return_cluster=False)
+
+
+
+                    # self.vis.plot_grid_with_cluster_save(cluster_idx, step, output_dir=outdir)
 
         # Create GIF from warmup frames only
         if save_warmup:
             self.vis.create_gif_from_frames(
                 output_dir=outdir,
-                output_file="ising_warmup.gif",
+                output_file= str(method) + "_" + str(T) + "_warmup.gif",
                 fps=self.vis.fps
             )
 
@@ -88,62 +91,6 @@ class MonteCarlo:
         self.acceptance_rate = self.accept / steps
 
 
-
-    ### wolff functional
-
-        
-    #     ### for regular lattice
-    # def wolff_step(self, return_cluster=False):
-    #     spins = self.lattice.magnetic_moments
-    #     N     = self.lattice.N
-    #     T     = self.T
-    #     beta  = 1.0 / T
-
-    #     seed = int(self.rng.integers(N))
-    #     s0   = spins[seed]  
-
-    #     visited = np.zeros(N, dtype=bool)
-    #     stack   = [seed]
-    #     cluster = []
-    #     visited[seed] = True
-
-    #     P_add = 1 - np.exp(-2 * beta * self.lattice.J)
-
-    #     while stack:
-    #         i = stack.pop()
-    #         if spins[i] != s0:
-    #             continue
-
-    #         cluster.append(i)
-
-    #         x, y = self.lattice.index_to_coords(i)
-    #         for nx, ny in self.lattice.get_neighbors_coords(x, y):
-    #             j = self.lattice.coords_to_index(nx, ny)
-    #             if not visited[j] and spins[j] == s0:
-
-    #                 if self.rng.random() < P_add:    
-    #                     visited[j] = True
-    #                     stack.append(j)
-    #             else:
-    #                 visited[j] = True  
-
-    #     cluster = np.asarray(cluster, dtype=int)
-    #     spins[cluster] *= -1
-
-    #     self.M = np.mean(spins)
-    #     self.M2 = (self.M)**2
-    #     self.mabs = np.mean(np.abs(spins))
-    #     self.E = self.compute_energy()  
-    #     self.chi = self.lattice.N * (1 - self.M**2) / self.T
-
-    #     if return_cluster:
-    #         return cluster
-
-
-
-
-    ### here everything is for disorder model 
-
     def precompute_bond_probabilities(self):
         J = self.lattice.interaction_matrix
         beta = 1.0 / self.T
@@ -154,49 +101,57 @@ class MonteCarlo:
         self.padd_same = 1 - np.exp(np.minimum(0, -beta * deltaE_same))
         self.padd_opp = 1 - np.exp(np.minimum(0, -beta * deltaE_opp))
 
+   
     def wolff_step(self, return_cluster=False):
         spins = self.lattice.magnetic_moments
-        J = self.lattice.interaction_matrix
-        N = self.lattice.N
+        J     = self.lattice.interaction_matrix
+        N     = self.lattice.N
+        seed  = int(self.rng.integers(N))
 
-        seed = self.rng.integers(N)
-        cluster = set([seed])
+        cluster = {seed}
         to_check = [seed]
-        visited = np.zeros(N, dtype=bool)
+        visited  = np.zeros(N, dtype=bool)
         visited[seed] = True
 
-        Si = spins[seed]
+        # edges_used = [] 
+        edges_fm, edges_afm = [],[]
 
         while to_check:
             i = to_check.pop()
             Si = spins[i]
-            neighbors = np.nonzero(J[i])[0]
+            neighbors = np.nonzero(J[i])[0]  # dense graph
 
             for j in neighbors:
                 if visited[j]:
                     continue
                 Sj = spins[j]
+
+                # your current padd rule (see B below…)
                 padd = self.padd_same[i, j] if Si == Sj else self.padd_opp[i, j]
                 if self.rng.random() < padd:
                     visited[j] = True
                     cluster.add(j)
                     to_check.append(j)
+                    # edges_used.append((i, j))  # <— record the bond we actually used
 
-        # Flip cluster
+                    if return_cluster:
+                        if J[i,j]>0:
+                            edges_fm.append((i,j))
+                        else:
+                            edges_afm.append((i,j))
+
+
+        # flip cluster
         for idx in cluster:
             spins[idx] *= -1
 
         self.E = self.acc.compute_energy()
-        self.M = spins.mean()
+        self.M = np.mean(spins)
+        self.mabs = np.abs(self.M)
 
         self.M2 = (self.M)**2
         self.E = self.compute_energy()  
         self.chi = self.lattice.N * (1 - self.M**2) / self.T
 
-        self.accept += 1
-
-
         if return_cluster:
-            return cluster
-
-
+            return (np.fromiter(cluster, dtype=int), edges_fm, edges_afm)                  #, edges_used
