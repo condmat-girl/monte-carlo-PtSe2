@@ -299,9 +299,7 @@ class Visualization:
         if segs_afm:
             ax.add_collection(LineCollection(segs_afm, colors=color_afm,
                                             linewidths=edge_lw, zorder=2))        
-        # ax.scatter(coords[:,0], coords[:,1], c=spins, cmap=SPIN_CMAP, vmin=-1, vmax=1,
-        #         s=node_s, linewidths=0, zorder=1)                                  # atoms
-     
+
         ax.set_axis_off(); ax.set_aspect("equal", adjustable="box")
         ax.set_title(f"Wolff step {step} — cluster size {len(cluster_idx)}/{N}")
         fig.savefig(os.path.join(out, f"step_{step:04d}.png"), dpi=150, bbox_inches="tight")

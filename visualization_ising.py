@@ -223,10 +223,8 @@ class Visualization_Ising:
         triang = tri.Triangulation(coords[:, 0], coords[:, 1])
 
         segments = []
-        # Each triangle has 3 edges; we add an edge if it separates in/out
-        tri_points = triang.triangles  # shape (ntri, 3) with vertex indices
+        tri_points = triang.triangles 
 
-        # Check each edge of each triangle; use a set to avoid duplicates
         seen = set()
         edges = [(0,1), (1,2), (2,0)]
         for t in tri_points:
