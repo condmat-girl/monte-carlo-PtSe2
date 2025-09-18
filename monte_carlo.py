@@ -51,7 +51,7 @@ class MonteCarlo:
             self.precompute_bond_probabilities()
 
 
-        print("Starting warmup phase...")
+        # print("Starting warmup phase...")
         for step in tqdm(range(warmup_steps), disable=False):
             if method == "metropolis":
                 self.metropolis_step()
@@ -78,7 +78,7 @@ class MonteCarlo:
                 fps=self.vis.fps
             )
 
-        print("Starting production phase...")
+        # print("Starting production phase...")
         self.accept = 0
         for _ in tqdm(range(steps), disable=False):
             if method == "metropolis":
