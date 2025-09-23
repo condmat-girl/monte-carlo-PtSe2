@@ -28,59 +28,76 @@ pip install numpy scipy matplotlib tqdm
 
 ---
 
-## Usage
-
-Clone the repository and run the simulation using:
-
-```bash
-python main.py
-```
-
-The main entry point initializes the lattice, runs the simulation, and produces the visualizations.
-
-Simulation parameters can be modified in `main.py`:
-
-```python
-rows = 20         # lattice height
-cols = 20         # lattice width
-doping = 0.3      # fraction of occupied lattice sites
-kf = 1.0          # Fermi wavevector
-J0 = 1.0          # coupling constant
-T = 1.5           # temperature
-steps = 1000      # number of Monte Carlo steps
-```
-
-To choose the simulation method:
-
-```python
-mc.run_loop(steps=steps, T=T, method="wolff")       # Wolff cluster algorithm
-mc.run_loop(steps=steps, T=T, method="metropolis")  # Metropolis local updates
-```
-
----
 
 ## Project Structure
 
 ```
+
 monte-carlo-PtSe2/
 │
-├── example.ipynb             # Example simulation script
-├── lattice.py          # Lattice construction and RKKY interaction matrix
-├── monte_carlo.py      # Metropolis and Wolff simulation engines
-├── accumulator.py      # Observable tracking and autocorrelation estimation
-├── visualization.py    # Plotting tools for lattice and correlation functions
+├── example.ipynb                # Minimal example
+├── lattice.py                   # Disordered triangular lattice + RKKY J\_ij
+├── monte\_carlo.py               # Metropolis / Wolff engines (+warmup GIF)
+├── accumulator.py               # Observables & autocorrelation helpers
+├── visualization.py             # Lattice/cluster/structure-factor plots
+├── plot\_observables.py          # Class to run & plot E, |M|, χ over (δ, kF)
+└── plots/                       # Figures output (created at runtime)
+
+````
+
+---
+
+## Quick start
+
+### A) Run and plot observables over (δ, kF)
+```python
+from plot_observables import ObservablesGrid
+
+runner = ObservablesGrid(
+    deltas=(0.025, 0.05, 0.075, 0.10),
+    kfs=(0.025, 0.05, 0.075, 0.10),
+    L=14, J0=-1.0,
+    # T_grid=np.linspace(2.0, 31.0, 30)
+)
+
+# Compute only what's needed for the specific plots:
+runner.plot_by_kf(delta=0.05)   
+
+![dependence on kF](plots/by_kf_delta0p05.png)
+
+
+runner.plot_by_delta(kf=0.05)  
+
+![dependence on δ](plots/by_delta_kf0p05.png)
+
+
+# Heatmap of χ-peak temperature T_peak(δ, kF) – will compute missing points:
+runner.plot_peak_map("T_peak")  # makes plots/map_Tpeak.png
+````
+
+### B) Warmup animation (GIF) with Wolff clusters
+
+```python
+from lattice import Lattice
+from monte_carlo import MonteCarlo
+
+rows = cols = 12
+delta, kf, J0 = 0.10, 0.10, -1.0
+T = 15.0
+
+lat = Lattice(rows, cols, delta, kf=kf, J0=J0)
+mc  = MonteCarlo(lat)
+
+# Will save frames to 'warmup_frames/' and create GIF 'wolff_15.0_warmup.gif'
+mc.run_loop(
+    warmup_steps=200, steps=0, T=T,
+    method="wolff",
+    save_warmup=True, outdir="warmup_frames"
+)
+# GIF is saved automatically by monte_carlo.run_loop as: wolff_<T>_warmup.gif
 ```
 
----
 
-## Output
+**Warmup GIF (Wolff):** `wolff_15.0_warmup.gif`
 
-After a successful run, the following plots are generated:
-
-* **Lattice plot** with spin orientation (color-coded)
-* **Magnetization vs. MC step**, with error bars based on autocorrelation time
-* **Pair correlation function** ⟨SᵢSⱼ⟩(r)
-
-These provide insights into the onset of magnetic order and correlation length in the system.
-
----
+```

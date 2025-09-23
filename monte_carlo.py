@@ -7,13 +7,13 @@ from visualization import Visualization
 
 class MonteCarlo:
 
-    def __init__(self, lattice):
+    def __init__(self, lattice, progress=False):
         self.lattice = lattice
         self.acc = Accumulator(lattice)
         self.vis = Visualization(lattice, self.acc)
         # self.vis_is = Visualization_Ising(lattice,self.acc)
         self.rng = np.random.default_rng(seed=42)
-
+        self.progress = progress
         self.T = None
         self.E = self.acc.compute_energy()
         self.M = self.lattice.magnetic_moments.mean()
@@ -50,9 +50,9 @@ class MonteCarlo:
         if method == "wolff":
             self.precompute_bond_probabilities()
 
-
-        # print("Starting warmup phase...")
-        for step in tqdm(range(warmup_steps), disable=False):
+        if self.progress==True:
+            print("Starting warmup phase...")
+        for step in tqdm(range(warmup_steps), disable=not self.progress):
             if method == "metropolis":
                 self.metropolis_step()
                 if save_warmup and (step % 1_000 == 0):
@@ -69,7 +69,6 @@ class MonteCarlo:
 
 
 
-                    # self.vis.plot_grid_with_cluster_save(cluster_idx, step, output_dir=outdir)
 
         if save_warmup:
             self.vis.create_gif_from_frames(
@@ -78,9 +77,10 @@ class MonteCarlo:
                 fps=self.vis.fps
             )
 
-        # print("Starting production phase...")
+        if self.progress==True:
+            print("Starting production phase...")
         self.accept = 0
-        for _ in tqdm(range(steps), disable=False):
+        for _ in tqdm(range(steps), disable=not self.progress):
             if method == "metropolis":
                 self.metropolis_step()
             else:
