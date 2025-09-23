@@ -63,12 +63,11 @@ runner = ObservablesGrid(
 # Compute only what's needed for the specific plots:
 runner.plot_by_kf(delta=0.05)   
 
-![dependence on kF](plots/by_kf_delta0p05.png)
-
+![alt text](plots/by_kf_delta0p05.png "dependance on kF")
 
 runner.plot_by_delta(kf=0.05)  
 
-![dependence on δ](plots/by_delta_kf0p05.png)
+![alt text](plots/by_delta_kf0p05.png "dependance on δ")
 
 
 # Heatmap of χ-peak temperature T_peak(δ, kF) – will compute missing points:
