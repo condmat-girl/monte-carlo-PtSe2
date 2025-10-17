@@ -11,6 +11,7 @@ class MonteCarlo:
         self.lattice = lattice
         self.acc = Accumulator(lattice)
         self.vis = Visualization(lattice, self.acc)
+        # for tests:
         # self.vis_is = Visualization_Ising(lattice,self.acc)
         self.rng = np.random.default_rng(seed=42)
         self.progress = progress
@@ -41,54 +42,120 @@ class MonteCarlo:
         self.M2 = (self.M)**2
         self.chi = self.lattice.N * (1 - self.M**2) / self.T
 
-    def run_loop(self, warmup_steps, steps, T, method="metropolis",
-                save_warmup=False , outdir="frames"):
+    # def run_loop(self, warmup_steps, steps, T, method="metropolis",
+    #             save_warmup=False , outdir="frames"):
         
 
-        self.T = T
+    #     self.T = T
 
+    #     if method == "wolff":
+    #         self.precompute_bond_probabilities()
+
+    #     if self.progress==True:
+    #         print("Starting warmup phase...")
+    #     for step in tqdm(range(warmup_steps), disable=not self.progress):
+    #         if method == "metropolis":
+    #             self.metropolis_step()
+    #             if save_warmup and (step % 1_000 == 0):
+    #                 self.vis.plot_coords_save(
+    #                     int(step//1_00),
+    #                     output_dir=outdir
+    #                 )
+    #         elif method == "wolff":
+    #             if save_warmup:
+    #                 (cluster_idx, edges_fm, edges_afm) = self.wolff_step(return_cluster=True)
+    #                 self.vis.plot_cluster_save(cluster_idx, edges_fm, edges_afm, step, self.lattice.N, output_dir=outdir)
+    #             else:
+    #                 self.wolff_step(return_cluster=False)
+
+
+
+
+    #     if save_warmup:
+    #         self.vis.create_gif_from_frames(
+    #             output_dir=outdir,
+    #             output_file= str(method) + "_" + str(T) + "_warmup.gif",
+    #             fps=self.vis.fps
+    #         )
+
+    #     if self.progress==True:
+    #         print("Starting production phase...")
+    #     self.accept = 0
+    #     for _ in tqdm(range(steps), disable=not self.progress):
+    #         if method == "metropolis":
+    #             self.metropolis_step()
+    #         else:
+    #             self.wolff_step()
+    #         self.acc.sample_production(self.E, self.M, self.chi,self.M2,self.mabs)
+
+    #     self.acceptance_rate = self.accept / steps
+
+    def run_loop(self, warmup_steps, steps, T, method="metropolis",
+                save_warmup=False, outdir="frames"):
+
+        self.T = T
         if method == "wolff":
             self.precompute_bond_probabilities()
 
-        if self.progress==True:
+        # очистить любые хвосты от прошлых запусков
+        self.acc.energy.clear()
+        self.acc.magnetization.clear()
+        self.acc.susceptibility.clear()
+        self.acc.m2_array.clear()
+        self.acc.m_abs_array.clear()
+
+        if self.progress:
             print("Starting warmup phase...")
+
         for step in tqdm(range(warmup_steps), disable=not self.progress):
             if method == "metropolis":
                 self.metropolis_step()
                 if save_warmup and (step % 1_000 == 0):
-                    self.vis.plot_coords_save(
-                        int(step//1_00),
-                        output_dir=outdir
-                    )
-            elif method == "wolff":
+                    self.vis.plot_coords_save(step // 100, output_dir=outdir)
+            else:  # wolff
                 if save_warmup:
                     (cluster_idx, edges_fm, edges_afm) = self.wolff_step(return_cluster=True)
                     self.vis.plot_cluster_save(cluster_idx, edges_fm, edges_afm, step, self.lattice.N, output_dir=outdir)
                 else:
                     self.wolff_step(return_cluster=False)
 
+            # <<< ВАЖНО: собирать warmup-ряд для τ_int >>>
+            self.acc.sample_warmup(step + 1, self.E, self.M)
 
-
+        tauE = float(self.acc.energy_tau_int)
+        tauM = float(self.acc.magnetization_tau_int)
 
         if save_warmup:
             self.vis.create_gif_from_frames(
                 output_dir=outdir,
-                output_file= str(method) + "_" + str(T) + "_warmup.gif",
+                output_file=f"{method}_{T}_warmup.gif",
                 fps=self.vis.fps
             )
 
-        if self.progress==True:
+        if self.progress:
             print("Starting production phase...")
-        self.accept = 0
+
+        # очистить серии, чтобы не смешивать с warmup
+        self.acc.energy.clear()
+        self.acc.magnetization.clear()
+        self.acc.susceptibility.clear()
+        self.acc.m2_array.clear()
+        self.acc.m_abs_array.clear()
+
+        self.accept = 0  # имеет смысл только для Metropolis
+
         for _ in tqdm(range(steps), disable=not self.progress):
             if method == "metropolis":
                 self.metropolis_step()
             else:
                 self.wolff_step()
-            self.acc.sample_production(self.E, self.M, self.chi,self.M2,self.mabs)
+            self.acc.sample_production(self.E, self.M, self.chi, self.M2, self.mabs)
 
-        self.acceptance_rate = self.accept / steps
+        # для wolff лучше не интерпретировать acceptance_rate
+        self.acceptance_rate = (self.accept / steps) if method == "metropolis" else float("nan")
 
+        # по желанию возвращайте τ для расчёта ошибок снаружи
+        return {"tau_E": tauE, "tau_M": tauM, "accept": self.acceptance_rate}
 
     def precompute_bond_probabilities(self):
         J = self.lattice.interaction_matrix
@@ -118,14 +185,13 @@ class MonteCarlo:
         while to_check:
             i = to_check.pop()
             Si = spins[i]
-            neighbors = np.nonzero(J[i])[0]  # dense graph
+            neighbors = np.nonzero(J[i])[0]  
 
             for j in neighbors:
                 if visited[j]:
                     continue
                 Sj = spins[j]
 
-                # your current padd rule (see B below…)
                 padd = self.padd_same[i, j] if Si == Sj else self.padd_opp[i, j]
                 if self.rng.random() < padd:
                     visited[j] = True
@@ -140,7 +206,6 @@ class MonteCarlo:
                             edges_afm.append((i,j))
 
 
-        # flip cluster
         for idx in cluster:
             spins[idx] *= -1
 
@@ -153,4 +218,6 @@ class MonteCarlo:
         self.chi = self.lattice.N * (1 - self.M**2) / self.T
 
         if return_cluster:
-            return (np.fromiter(cluster, dtype=int), edges_fm, edges_afm)                  #, edges_used
+            return (np.fromiter(cluster, dtype=int), edges_fm, edges_afm)              
+
+

@@ -86,6 +86,18 @@ class Accumulator:
         # self.susceptibility.append(self.compute_susceptibility(M,spins,T))
 
 
+    def incremental_autocorrelation(self, series, mean, variance):
+        """ACF для текущей серии (исп. FFT-оценку)."""
+        x = np.asarray(series, float)
+        if x.size < 2 or variance <= 0:
+            return np.array([1.0])
+        return self.autocorr_fft(x, unbiased=True)
+
+    def calculate_autocorrelation_time(self, acf):
+        """Интегральное τ_int по правилу первого неположительного пересечения."""
+        return self.tau_int_from_acf(np.asarray(acf, float))
+
+
     def compute_energy(self):
         s = self.lattice.magnetic_moments
         J = self.lattice.interaction_matrix

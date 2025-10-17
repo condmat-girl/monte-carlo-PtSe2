@@ -10,10 +10,7 @@ from monte_carlo import MonteCarlo
 
 
 class ObservablesGrid:
-    """
-    Ленивые расчёты и плоты по сетке (delta, kF) для E, |M|, chi.
-    chi берётся из acc: chi = N*(1 - M**2)/T (как в вашем коде).
-    """
+
 
     def __init__(self,
                  deltas, kfs,
