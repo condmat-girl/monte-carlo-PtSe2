@@ -135,14 +135,13 @@ class MonteCarlo:
         if self.progress:
             print("Starting production phase...")
 
-        # очистить серии, чтобы не смешивать с warmup
         self.acc.energy.clear()
         self.acc.magnetization.clear()
         self.acc.susceptibility.clear()
         self.acc.m2_array.clear()
         self.acc.m_abs_array.clear()
 
-        self.accept = 0  # имеет смысл только для Metropolis
+        self.accept = 0  # for metropolis
 
         for _ in tqdm(range(steps), disable=not self.progress):
             if method == "metropolis":
@@ -151,10 +150,8 @@ class MonteCarlo:
                 self.wolff_step()
             self.acc.sample_production(self.E, self.M, self.chi, self.M2, self.mabs)
 
-        # для wolff лучше не интерпретировать acceptance_rate
         self.acceptance_rate = (self.accept / steps) if method == "metropolis" else float("nan")
 
-        # по желанию возвращайте τ для расчёта ошибок снаружи
         return {"tau_E": tauE, "tau_M": tauM, "accept": self.acceptance_rate}
 
     def precompute_bond_probabilities(self):
