@@ -9,4 +9,7 @@ plots/
 *.gif
 __pycache__/
 .ipynb_checkpoints/
-
+./venv
+mag_chi*
+peak*
+ising.py

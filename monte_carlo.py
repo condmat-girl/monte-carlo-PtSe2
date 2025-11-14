@@ -5,6 +5,12 @@ from visualization import Visualization
 # from visualization_ising import Visualization_Ising
 
 
+## TODO: 
+## remove from accumulator all quantities which we don;t use in futher calculations or which are easy to obtain with M
+## put flags for all optional features (like visualization, progress etc)
+## for accumulator: find an optimal way to save "running statistics" during warmup
+
+
 class MonteCarlo:
 
     def __init__(self, lattice, progress=False):
@@ -42,53 +48,6 @@ class MonteCarlo:
         self.M2 = (self.M)**2
         self.chi = self.lattice.N * (1 - self.M**2) / self.T
 
-    # def run_loop(self, warmup_steps, steps, T, method="metropolis",
-    #             save_warmup=False , outdir="frames"):
-        
-
-    #     self.T = T
-
-    #     if method == "wolff":
-    #         self.precompute_bond_probabilities()
-
-    #     if self.progress==True:
-    #         print("Starting warmup phase...")
-    #     for step in tqdm(range(warmup_steps), disable=not self.progress):
-    #         if method == "metropolis":
-    #             self.metropolis_step()
-    #             if save_warmup and (step % 1_000 == 0):
-    #                 self.vis.plot_coords_save(
-    #                     int(step//1_00),
-    #                     output_dir=outdir
-    #                 )
-    #         elif method == "wolff":
-    #             if save_warmup:
-    #                 (cluster_idx, edges_fm, edges_afm) = self.wolff_step(return_cluster=True)
-    #                 self.vis.plot_cluster_save(cluster_idx, edges_fm, edges_afm, step, self.lattice.N, output_dir=outdir)
-    #             else:
-    #                 self.wolff_step(return_cluster=False)
-
-
-
-
-    #     if save_warmup:
-    #         self.vis.create_gif_from_frames(
-    #             output_dir=outdir,
-    #             output_file= str(method) + "_" + str(T) + "_warmup.gif",
-    #             fps=self.vis.fps
-    #         )
-
-    #     if self.progress==True:
-    #         print("Starting production phase...")
-    #     self.accept = 0
-    #     for _ in tqdm(range(steps), disable=not self.progress):
-    #         if method == "metropolis":
-    #             self.metropolis_step()
-    #         else:
-    #             self.wolff_step()
-    #         self.acc.sample_production(self.E, self.M, self.chi,self.M2,self.mabs)
-
-    #     self.acceptance_rate = self.accept / steps
 
     def run_loop(self, warmup_steps, steps, T, method="metropolis",
                 save_warmup=False, outdir="frames"):
@@ -97,7 +56,6 @@ class MonteCarlo:
         if method == "wolff":
             self.precompute_bond_probabilities()
 
-        # очистить любые хвосты от прошлых запусков
         self.acc.energy.clear()
         self.acc.magnetization.clear()
         self.acc.susceptibility.clear()
@@ -107,7 +65,7 @@ class MonteCarlo:
         if self.progress:
             print("Starting warmup phase...")
 
-        for step in tqdm(range(warmup_steps), disable=not self.progress):
+        for step in tqdm(range(warmup_steps), disable= self.progress):
             if method == "metropolis":
                 self.metropolis_step()
                 if save_warmup and (step % 1_000 == 0):
@@ -118,8 +76,8 @@ class MonteCarlo:
                     self.vis.plot_cluster_save(cluster_idx, edges_fm, edges_afm, step, self.lattice.N, output_dir=outdir)
                 else:
                     self.wolff_step(return_cluster=False)
-
-            # <<< ВАЖНО: собирать warmup-ряд для τ_int >>>
+################### ЧЕКНУТЬ: автокорреляция на вармап юзает только последнюю 
+            # <<< НЕ ВАЖНО: собирать warmup-ряд для τ_int  >>>
             self.acc.sample_warmup(step + 1, self.E, self.M)
 
         tauE = float(self.acc.energy_tau_int)
@@ -143,7 +101,7 @@ class MonteCarlo:
 
         self.accept = 0  # for metropolis
 
-        for _ in tqdm(range(steps), disable=not self.progress):
+        for _ in tqdm(range(steps), disable= self.progress):
             if method == "metropolis":
                 self.metropolis_step()
             else:

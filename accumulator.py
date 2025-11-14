@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Accumulator:
     def __init__(self, lattice, max_lag=1_000):
         self.lattice = lattice
@@ -83,7 +84,6 @@ class Accumulator:
         self.m2_array.append(m2)
         self.m_abs_array.append(mabs)
 
-        # self.susceptibility.append(self.compute_susceptibility(M,spins,T))
 
 
     def incremental_autocorrelation(self, series, mean, variance):
