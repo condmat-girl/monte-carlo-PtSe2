@@ -9,6 +9,9 @@ from visualization import Visualization
 ## remove from accumulator all quantities which we don;t use in futher calculations or which are easy to obtain with M
 ## put flags for all optional features (like visualization, progress etc)
 ## for accumulator: find an optimal way to save "running statistics" during warmup
+## compare primitive acf calculation with more advanced methods (FFT-based, etc)
+## obtain correlation length from pair correlation function BUT
+## before check the pair correlation function calculation itself (is it correct?) (i think no)
 
 
 class MonteCarlo:
@@ -24,8 +27,6 @@ class MonteCarlo:
         self.T = None
         self.E = self.acc.compute_energy()
         self.M = self.lattice.magnetic_moments.mean()
-        self.M2 = None
-        self.mabs = None
         self.step = 0
         self.accept = 0
 
@@ -76,8 +77,7 @@ class MonteCarlo:
                     self.vis.plot_cluster_save(cluster_idx, edges_fm, edges_afm, step, self.lattice.N, output_dir=outdir)
                 else:
                     self.wolff_step(return_cluster=False)
-################### ЧЕКНУТЬ: автокорреляция на вармап юзает только последнюю 
-            # <<< НЕ ВАЖНО: собирать warmup-ряд для τ_int  >>>
+
             self.acc.sample_warmup(step + 1, self.E, self.M)
 
         tauE = float(self.acc.energy_tau_int)
@@ -106,7 +106,7 @@ class MonteCarlo:
                 self.metropolis_step()
             else:
                 self.wolff_step()
-            self.acc.sample_production(self.E, self.M, self.chi, self.M2, self.mabs)
+            self.acc.sample_production(self.E, self.M, self.chi)
 
         self.acceptance_rate = (self.accept / steps) if method == "metropolis" else float("nan")
 

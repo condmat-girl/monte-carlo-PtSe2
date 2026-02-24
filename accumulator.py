@@ -73,28 +73,22 @@ class Accumulator:
         )
         self.magnetization_tau_int = self.calculate_autocorrelation_time(self.magnetization_autocorr)
 
-    def sample_production(self, E, M, chi, m2,mabs):
+    def sample_production(self, E, M, chi):
         self.energy.append(E)
         self.magnetization.append(M)
-        # print(f"Production: E = {energy:10.4f}, M = {magnetization:10.4f}")
-        # self.pair_correlation_accum += self.lattice.compute_pair_correlation()
-        spins = self.lattice.magnetic_moments
-        self.correlation_matrix += np.outer(spins, spins)
+        ####PUT FLAGS!!!!!
+        # spins = self.lattice.magnetic_moments
+        # self.correlation_matrix += np.outer(spins, spins)
         self.susceptibility.append(chi)
-        self.m2_array.append(m2)
-        self.m_abs_array.append(mabs)
-
 
 
     def incremental_autocorrelation(self, series, mean, variance):
-        """ACF для текущей серии (исп. FFT-оценку)."""
         x = np.asarray(series, float)
         if x.size < 2 or variance <= 0:
             return np.array([1.0])
         return self.autocorr_fft(x, unbiased=True)
 
     def calculate_autocorrelation_time(self, acf):
-        """Интегральное τ_int по правилу первого неположительного пересечения."""
         return self.tau_int_from_acf(np.asarray(acf, float))
 
 
@@ -156,7 +150,6 @@ class Accumulator:
         return acov / denom
 
     def tau_int_from_acf(self, acf):
-        # first non-positive crossing “window”; fall back to full sum
         for i, v in enumerate(acf[1:], 1):
             if v <= 0:
                 return 1.0 + 2.0 * np.sum(acf[1:i])

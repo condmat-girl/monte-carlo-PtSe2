@@ -85,7 +85,6 @@ class ParallelTempering:
             self._sweep(mc, self.warmup_per_replica)
 
         for epoch in range(int(n_exchange_epochs)):
-            # эволюция всех реплик на своих T
             for mc in self.mcs:
                 self._sweep(mc, self.steps_per_exchange)
 
