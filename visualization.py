@@ -36,7 +36,6 @@ class Visualization:
         self.fps      = fps
         os.makedirs(self.outdir, exist_ok=True)
 
-    # ---------- BASIC SNAPSHOTS ----------
     def plot_coords(self, show_mesh=True, s=28):
         """Scatter spins on triangulation."""
         coords = self.lattice.coords
@@ -78,7 +77,6 @@ class Visualization:
         imageio.mimsave(outfile, images, fps=_fps)
         print(f"GIF saved to {outfile}")
 
-    # ---------- CLUSTER BORDER (irregular mesh, PBC-safe) ----------
     def _cluster_boundary_segments(self, cluster_mask):
         """
         Build short PBC-aware line segments along boundaries where cluster vs non-cluster
@@ -140,7 +138,6 @@ class Visualization:
         plt.savefig(os.path.join(out, f"step_{step:04d}.png"), dpi=150, bbox_inches="tight")
         plt.close()
 
-    # ---------- OPTIONAL: BOND MAP (top-|J| or r cutoff) ----------
     def plot_bonds(self, k=500, r_max=None, lw=1.5, alpha=0.5):
         """
         Draw strongest bonds: either top-k by |J| (upper triangle) or all with r < r_max.
@@ -188,7 +185,6 @@ class Visualization:
             plt.gca().add_collection(LineCollection(segs_af, colors=BOND_AF_COLOR, lw=lw, alpha=alpha, zorder=0))
         plt.axis("equal"); plt.axis("off"); plt.tight_layout()#; plt.show()
 
-    # ---------- STRUCTURE FACTOR S(q) ----------
     def compute_structure_factor(self, qn=64):
         """
         Return (qx, qy, S) on a q-grid; qx, qy are 1D arrays (radians).
@@ -216,7 +212,6 @@ class Visualization:
         plt.xlabel("qx"); plt.ylabel("qy"); plt.title("Structure factor S(q)")
         plt.tight_layout()#; plt.show()
 
-    # ---------- BINNED PAIR CORRELATION ----------
     def plot_pair_correlation_binned(self, nbins="fd"):
         """
         Radial ⟨S_i S_j⟩(r) using existing distances and pair products.
