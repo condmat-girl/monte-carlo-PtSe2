@@ -8,6 +8,7 @@ class Accumulator:
         self.susceptibility = []
         self.m2_array = []
         self.m_abs_array = []
+        self.m4_array = []
 
         # for warmup phase
         self.energy_mean = 0.0
@@ -72,18 +73,15 @@ class Accumulator:
         )
         self.magnetization_tau_int = self.calculate_autocorrelation_time(self.magnetization_autocorr)
 
-    def sample_production(self, E, M, chi, m2,mabs):
+    def sample_production(self, E, M, chi, m2, mabs):
         self.energy.append(E)
         self.magnetization.append(M)
-        # print(f"Production: E = {energy:10.4f}, M = {magnetization:10.4f}")
-        # self.pair_correlation_accum += self.lattice.compute_pair_correlation()
         spins = self.lattice.magnetic_moments
         self.correlation_matrix += np.outer(spins, spins)
         self.susceptibility.append(chi)
         self.m2_array.append(m2)
         self.m_abs_array.append(mabs)
-
-        # self.susceptibility.append(self.compute_susceptibility(M,spins,T))
+        self.m4_array.append(float(m2) ** 2)   # m4 = (M^2)^2 = M^4
 
 
     def incremental_autocorrelation(self, series, mean, variance):
@@ -108,6 +106,23 @@ class Accumulator:
         N = len(data)
         return np.sqrt(2 * tau_int * np.var(data) / N)
     
+
+    def compute_binder(self):
+        """Binder cumulant U₄ = 1 - ⟨M⁴⟩ / (3⟨M²⟩²).
+
+        Returns nan if fewer than 2 samples have been collected.
+        U₄ → 2/3 in the ordered phase (FM Ising), → 0 in the disordered phase.
+        The crossing point of U₄(T) curves for different L estimates Tc.
+        """
+        m4 = np.asarray(self.m4_array, dtype=float)
+        m2 = np.asarray(self.m2_array, dtype=float)
+        if m4.size < 2:
+            return np.nan
+        mean_m4 = np.mean(m4)
+        mean_m2 = np.mean(m2)
+        if mean_m2 == 0.0:
+            return np.nan
+        return float(1.0 - mean_m4 / (3.0 * mean_m2 ** 2))
 
     def compute_susceptibility(self, magnetization, T, N):
         M = np.asarray(magnetization)

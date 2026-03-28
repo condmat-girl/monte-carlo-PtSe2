@@ -22,6 +22,7 @@ class MonteCarlo:
         self.mabs = None
         self.step = 0
         self.accept = 0
+        self._padd_temperature = None  # last T used to build padd_same / padd_opp
 
     def compute_energy(self):
         return self.acc.compute_energy()
@@ -103,6 +104,7 @@ class MonteCarlo:
         self.acc.susceptibility.clear()
         self.acc.m2_array.clear()
         self.acc.m_abs_array.clear()
+        self.acc.m4_array.clear()
 
         if self.progress:
             print("Starting warmup phase...")
@@ -141,8 +143,9 @@ class MonteCarlo:
         self.acc.susceptibility.clear()
         self.acc.m2_array.clear()
         self.acc.m_abs_array.clear()
+        self.acc.m4_array.clear()
 
-        self.accept = 0  # имеет смысл только для Metropolis
+        self.accept = 0
 
         for _ in tqdm(range(steps), disable=not self.progress):
             if method == "metropolis":
@@ -166,9 +169,14 @@ class MonteCarlo:
 
         self.padd_same = 1 - np.exp(np.minimum(0, -beta * deltaE_same))
         self.padd_opp = 1 - np.exp(np.minimum(0, -beta * deltaE_opp))
+        self._padd_temperature = float(self.T)
 
-   
     def wolff_step(self, return_cluster=False):
+        if self.T is None:
+            raise RuntimeError("Set MonteCarlo.T (e.g. via run_loop(..., T=...)) before wolff_step.")
+        if self._padd_temperature != float(self.T):
+            self.precompute_bond_probabilities()
+
         spins = self.lattice.magnetic_moments
         J     = self.lattice.interaction_matrix
         N     = self.lattice.N
