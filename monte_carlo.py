@@ -39,7 +39,7 @@ class MonteCarlo:
         self.M2   = self.M ** 2
         self.M4   = self.M ** 4
         self.mabs = mabs
-        self.chi  = self.lattice.N * (self.M2 - mabs ** 2) / self.T
+        self.chi  = None if self.T is None else self.lattice.N * self.M2 / self.T
         self._E2  = self.E ** 2
 
     # ── single-spin Metropolis ────────────────────────────────────────────────
@@ -58,6 +58,9 @@ class MonteCarlo:
                 save_warmup=False, outdir="frames"):
 
         self.T = T
+        self.acc.reset_measurements()
+        self.E = self.acc.compute_energy()
+        self._update_observables()
 
         if method == "wolff":
             self.precompute_bond_probabilities()
@@ -67,7 +70,7 @@ class MonteCarlo:
                 self.metropolis_step()
                 if save_warmup and (step % 1_000 == 0):
                     self.vis.plot_coords_save(
-                        int(step//1_00),
+                        int(step//1_000),
                         output_dir=outdir
                     )
             elif method == "wolff":
@@ -100,7 +103,9 @@ class MonteCarlo:
                 e2   = self._E2,
             )
 
-        self.acceptance_rate = self.accept / steps
+        if steps > 0:
+            self.acc.process_pair_correlation(steps)
+        self.acceptance_rate = self.accept / steps if steps > 0 else 0.0
 
     # ── Wolff bond probabilities ──────────────────────────────────────────────
     def precompute_bond_probabilities(self):
@@ -141,6 +146,7 @@ class MonteCarlo:
             spins[idx] *= -1
 
         self.E = self.acc.compute_energy()
+        self.accept += 1
         self._update_observables()
 
         if return_cluster:
