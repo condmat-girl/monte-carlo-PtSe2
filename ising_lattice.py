@@ -9,15 +9,21 @@ class IsingLattice:
 
         self.magnetic_moments = np.random.choice([-1, 1], size=self.N)
         self.interaction_matrix = self.build_nn_matrix()
-        self.distances = np.ones((self.N, self.N))  
+        idx = np.arange(self.N)
+        self.coords = np.column_stack([idx // self.Ly, idx % self.Ly]).astype(float)
+        self.distances = self.build_distance_matrix()
         self.i_idx, self.j_idx = np.triu_indices(self.N, k=1)
         self.r_ij = self.distances[self.i_idx, self.j_idx]
-        self.bin_edges = np.linspace(0, 2, 10)
+        r_max = self.r_ij.max() if self.r_ij.size else 1.0
+        self.bin_edges = np.linspace(0, r_max + 1e-9, 10)
         self.hist, _ = np.histogram(self.r_ij, bins=self.bin_edges)
 
 
     def reset_spins(self, ordered=False):
-        self.magnetic_moments = np.random.choice([-1, 1], size=self.N)
+        if ordered:
+            self.magnetic_moments = np.ones(self.N, dtype=int)
+        else:
+            self.magnetic_moments = np.random.choice([-1, 1], size=self.N)
 
 
     def build_nn_matrix(self):
@@ -29,22 +35,31 @@ class IsingLattice:
                     ni = (i + dx) % self.Lx
                     nj = (j + dy) % self.Ly
                     nidx = ni * self.Ly + nj
-                    matrix[idx, nidx] = self.J 
+                    matrix[idx, nidx] += self.J 
         return matrix
 
     def compute_energy(self):
         s = self.magnetic_moments
         J = self.interaction_matrix
-        return s @ J @ s
+        return 0.5 * s @ J @ s
+
+    def build_distance_matrix(self):
+        x = self.coords[:, 0][:, None]
+        y = self.coords[:, 1][:, None]
+        dx = np.abs(x - x.T)
+        dy = np.abs(y - y.T)
+        dx = np.minimum(dx, self.Lx - dx)
+        dy = np.minimum(dy, self.Ly - dy)
+        return np.sqrt(dx ** 2 + dy ** 2)
 
     ## мапы от индекса до координат и обратно
     def index_to_coords(self, i):
-        x = i % self.Lx
-        y = i // self.Lx
+        x = i // self.Ly
+        y = i % self.Ly
         return x, y
 
     def coords_to_index(self, x, y):
-        return (y % self.Ly) * self.Lx + (x % self.Lx)
+        return (x % self.Lx) * self.Ly + (y % self.Ly)
 
    ## helper for wolff step
     def get_neighbors_coords(self, x, y):

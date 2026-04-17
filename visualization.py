@@ -21,6 +21,7 @@ PALETTE = [
 MESH_COLOR    = PALETTE[2]
 BOND_FM_COLOR = PALETTE[1]
 BOND_AF_COLOR = PALETTE[4]
+BORDER_COLOR  = PALETTE[2]
 
 SPIN_CMAP = ListedColormap([PALETTE[0], PALETTE[3]], name="spin2")
 
@@ -216,7 +217,7 @@ class Visualization:
         """
         Radial ⟨S_i S_j⟩(r) using existing distances and pair products.
         """
-        sijs = self.lattice.compute_pair_correlation()      # shape: M= N(N-1)/2
+        sijs = self.acc.compute_pair_correlation()      # shape: M= N(N-1)/2
         r    = self.lattice.r_ij
         if nbins == "fd":
             bins = self.lattice.bin_edges
