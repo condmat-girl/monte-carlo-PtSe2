@@ -13,3 +13,4 @@ __pycache__/
 mag_chi*
 peak*
 ising.py
+*.png

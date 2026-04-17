@@ -4,7 +4,10 @@ import numpy as np
 class Accumulator:
     def __init__(self, lattice, max_lag=1_000):
         self.lattice = lattice
+        self.max_lag = max_lag
+        self.reset_measurements()
 
+    def reset_measurements(self):
         # time-series storage
         self.energy         = []
         self.magnetization  = []
@@ -24,13 +27,16 @@ class Accumulator:
         self.magnetization_count    = 0
 
         # for acf
-        self.max_lag = max_lag
-        self.energy_autocorr       = np.zeros(max_lag)
-        self.magnetization_autocorr = np.zeros(max_lag)
+        self.energy_autocorr       = np.zeros(self.max_lag)
+        self.magnetization_autocorr = np.zeros(self.max_lag)
         self.energy_tau_int        = 0.0
         self.magnetization_tau_int = 0.0
 
         self.correlation_matrix = np.zeros((self.lattice.N, self.lattice.N))
+        self.pair_correlation = None
+        self.binned_pair_correlation = None
+        self.bin_centers = None
+        self.pair_correlation_count = 0
 
         # костыли
         self.corelation = []
@@ -45,23 +51,19 @@ class Accumulator:
 
     def sample_warmup(self, step, energy, magnetization):
         self.energy_mean, self.energy_variance, self.energy_count = self.update_running_statistics(
-            energy, self.energy_mean, self.energy_variance, step
+            energy, self.energy_mean, self.energy_variance, self.energy_count
         )
         self.magnetization_mean, self.magnetization_variance, self.magnetization_count = self.update_running_statistics(
-            magnetization, self.magnetization_mean, self.magnetization_variance, step
+            magnetization, self.magnetization_mean, self.magnetization_variance, self.magnetization_count
         )
         self.energy.append(energy)
         self.magnetization.append(magnetization)
 
-        self.energy_autocorr = self.incremental_autocorrelation(
-            self.energy, self.energy_mean, self.energy_variance
-        )
-        self.energy_tau_int = self.calculate_autocorrelation_time(self.energy_autocorr)
+        self.energy_autocorr = self.autocorr_fft(self.energy)
+        self.energy_tau_int = self.tau_int_from_acf(self.energy_autocorr)
 
-        self.magnetization_autocorr = self.incremental_autocorrelation(
-            self.magnetization, self.magnetization_mean, self.magnetization_variance
-        )
-        self.magnetization_tau_int = self.calculate_autocorrelation_time(self.magnetization_autocorr)
+        self.magnetization_autocorr = self.autocorr_fft(self.magnetization)
+        self.magnetization_tau_int = self.tau_int_from_acf(self.magnetization_autocorr)
 
     # ── production sampling ───────────────────────────────────────────────────
     def sample_production(self, E, M, chi, m2, m4, mabs, e2):
@@ -69,6 +71,11 @@ class Accumulator:
         self.magnetization.append(M)
         spins = self.lattice.magnetic_moments
         self.correlation_matrix += np.outer(spins, spins)
+        self.pair_correlation_count += 1
+        self.pair_correlation = (
+            self.correlation_matrix[self.lattice.i_idx, self.lattice.j_idx]
+            / self.pair_correlation_count
+        )
         self.susceptibility.append(chi)
         self.m2_array.append(m2)
         self.m4_array.append(m4)
@@ -79,7 +86,7 @@ class Accumulator:
     def compute_energy(self):
         s = self.lattice.magnetic_moments
         J = self.lattice.interaction_matrix
-        return s @ J @ s
+        return 0.5 * s @ J @ s
 
     # ── Binder cumulant  U4 = 1 - <M⁴> / (3 <M²>²) ──────────────────────────
     def compute_binder_and_error(self, m2_array, m4_array, n_blocks=20):
@@ -137,15 +144,16 @@ class Accumulator:
     def get_binned_pair_correlation(self):
         if self.binned_pair_correlation is None:
             raise RuntimeError("Pair correlation has not been computed yet.")
-        return self.lattice.bin_centers, self.binned_pair_correlation
+        return self.bin_centers, self.binned_pair_correlation
 
     def process_pair_correlation(self, steps):
         correlation_matrix = self.correlation_matrix / steps
         r_ij = self.lattice.distances
 
-        i, j = np.triu_indices(self.lattice.N, k=0)
+        i, j = np.triu_indices(self.lattice.N, k=1)
         r_flat            = r_ij[i, j]
         correlation_matrix_flat = correlation_matrix[i, j]
+        self.pair_correlation = correlation_matrix_flat
 
         bin_edges = self.lattice.bin_edges
         hist,     _ = np.histogram(r_flat, bins=bin_edges)
@@ -158,11 +166,15 @@ class Accumulator:
     def autocorr_fft(self, x, unbiased=True):
         x = np.asarray(x, float)
         n = x.size
+        if n == 0:
+            return np.array([])
         x = x - x.mean()
         nfft  = 1 << (2 * n - 1).bit_length()
         f     = np.fft.rfft(x, n=nfft)
         acov  = np.fft.irfft(f * np.conjugate(f), n=nfft)[:n]
         var   = acov[0] / n
+        if np.isclose(var, 0.0):
+            return np.ones(n)
         denom = var * (n - np.arange(n)) if unbiased else var * n
         return acov / denom
 
